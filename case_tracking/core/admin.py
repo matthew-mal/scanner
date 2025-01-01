@@ -1,6 +1,19 @@
+from django import forms
 from django.contrib import admin
 
 from .models import Case, CaseStageLog, NextStage, Stage
+
+
+class CaseAdminForm(forms.ModelForm):
+    class Meta:
+        model = Case
+        fields = "__all__"
+
+    def clean_current_stage(self):
+        current_stage = self.cleaned_data.get("current_stage")
+        if not current_stage:
+            raise forms.ValidationError("Необходимо указать текущий этап.")
+        return current_stage
 
 
 @admin.register(Stage)
@@ -19,6 +32,7 @@ class NextStageAdmin(admin.ModelAdmin):
 
 @admin.register(Case)
 class CaseAdmin(admin.ModelAdmin):
+    form = CaseAdminForm
     list_display = (
         "case_number",
         "priority",

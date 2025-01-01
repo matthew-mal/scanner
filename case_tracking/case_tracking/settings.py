@@ -95,9 +95,7 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Templates
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
+# Templates and static
 
 TEMPLATES = [
     {
@@ -124,8 +122,6 @@ STATICFILES_DIRS = [
 
 
 # DB and celery
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
     "default": dj_database_url.config(default=config("DATABASE_URL"), conn_max_age=600)
@@ -135,3 +131,31 @@ CELERY_TIMEZONE = "UTC"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_BROKER_URL = config("CELERY_BROKER_URL")
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+
+
+# Logger
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "root": {
+        "level": "WARNING",
+        "handlers": ["console"],
+    },
+    "formatters": {
+        "simple": {"format": "%(levelname)s %(asctime)s %(message)s"},
+    },
+    "handlers": {
+        "console": {
+            "level": "WARNING",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "loggers": {
+        "django.db.backends": {
+            "level": "ERROR",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+    },
+}
