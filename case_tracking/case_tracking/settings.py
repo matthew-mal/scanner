@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_celery_beat",
+    "guardian",
     "core",
 ]
 
@@ -60,6 +61,15 @@ ROOT_URLCONF = "case_tracking.urls"
 WSGI_APPLICATION = "case_tracking.wsgi.application"
 
 
+AUTHENTICATION_BACKENDS = (
+    "django.contrib.auth.backends.ModelBackend",
+    "guardian.backends.ObjectPermissionBackend",
+)
+
+
+AUTH_USER_MODEL = "core.CustomUser"
+
+GUARDIAN_MONKEY_PATCH = False
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 

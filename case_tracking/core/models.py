@@ -1,5 +1,8 @@
+from django.contrib.auth.base_user import AbstractBaseUser
+from django.contrib.auth.models import PermissionsMixin
 from django.db import models, transaction
 from django.utils.timezone import now
+from guardian.mixins import GuardianUserMixin
 
 
 class Stage(models.Model):
@@ -9,15 +12,15 @@ class Stage(models.Model):
 
     name = models.CharField(max_length=32, unique=True, db_index=True)
     display_name = models.CharField(max_length=64)
-    description = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.name
+    note = models.TextField(blank=True, null=True)
 
     class Meta:
         ordering = ["name"]
-        verbose_name = "Stage"
-        verbose_name_plural = "Stages"
+        verbose_name = "State"
+        verbose_name_plural = "States"
+
+    def __str__(self):
+        return f"{self.pk} {self.name} {self.display_name}"
 
 
 class NextStage(models.Model):
@@ -33,13 +36,13 @@ class NextStage(models.Model):
     )
     next = models.ForeignKey(Stage, on_delete=models.CASCADE, related_name="next_state")
 
-    def __str__(self):
-        return f"From {self.current.name} to {self.next.name}"
-
     class Meta:
         ordering = ["display_name"]
-        verbose_name = "Next Stage"
-        verbose_name_plural = "Next Stages"
+        verbose_name = "Next State"
+        verbose_name_plural = "Next States"
+
+    def __str__(self):
+        return f"{self.signal} {self.current} {self.next}"
 
 
 class ReturnReason(models.Model):
@@ -69,8 +72,8 @@ class Case(models.Model):
     """
 
     PRIORITY_CHOICES = [
-        ("standard", "Standard"),
-        ("urgent", "Urgent"),
+        ("standard", "STANDARD"),
+        ("urgent", "URGENT"),
     ]
 
     MATERIAL_CHOICES = [
@@ -79,16 +82,21 @@ class Case(models.Model):
         ("emax", "EMAX"),
     ]
 
-    case_number = models.CharField(
-        max_length=50,
-        unique=True,
-    )
+    case_number = models.CharField(max_length=100, unique=True)
     priority = models.CharField(
         max_length=10, choices=PRIORITY_CHOICES, default="standard"
     )
-    material = models.CharField(max_length=10, choices=MATERIAL_CHOICES)
+    material = models.CharField(
+        max_length=10, choices=MATERIAL_CHOICES, null=True, blank=True
+    )
     shade = models.CharField(max_length=50, blank=True, null=True)
     current_stage = models.ForeignKey(Stage, on_delete=models.PROTECT)
+    next_state_intent = models.ForeignKey(
+        NextStage,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(default=now)
     updated_at = models.DateTimeField(auto_now=True)
     archived = models.BooleanField(default=False)
@@ -167,19 +175,59 @@ class CaseStageLog(models.Model):
     Represents a log of a case's stage transitions.
     """
 
-    case = models.ForeignKey(Case, on_delete=models.PROTECT, related_name="stage_logs")
+    case = models.ForeignKey(
+        Case, on_delete=models.PROTECT, related_name="stage_logs_case"
+    )
     stage = models.ForeignKey(
-        Stage, on_delete=models.PROTECT, related_name="stage_logs"
+        Stage, on_delete=models.PROTECT, related_name="stage_logs_stage"
     )
     start_time = models.DateTimeField(default=now)
     end_time = models.DateTimeField(null=True, blank=True)
     reason = models.TextField(blank=True, null=True)
     is_returned = models.BooleanField(default=False)
 
-    def __str__(self):
-        return f"Log for Case {self.case.case_number} at {self.stage}"
-
     class Meta:
         ordering = ["-start_time"]
         verbose_name = "Case Stage Log"
         verbose_name_plural = "Case Stage Logs"
+
+    def __str__(self):
+        return f"Log for Case {self.case.case_number} at {self.stage}"
+
+
+class CustomUser(AbstractBaseUser, PermissionsMixin, GuardianUserMixin):
+
+    USERNAME_FIELD = "email"
+
+    EMPLOYEE = "employee"
+    MANAGER = "manager"
+
+    USER_ROLE_CHOICES = (
+        (EMPLOYEE, "Employee"),
+        (MANAGER, "Manager"),
+    )
+
+    first_name = models.CharField("first name", max_length=30, blank=True)
+    last_name = models.CharField("last name", max_length=150, blank=True)
+    email = models.EmailField("email address", blank=True, unique=True)
+    is_staff = models.BooleanField(
+        "Может ли заходить в админку",
+        default=False,
+    )
+    role = models.CharField(max_length=40, choices=USER_ROLE_CHOICES, default=EMPLOYEE)
+
+    class Meta:
+        verbose_name = "User"
+        verbose_name_plural = "Users"
+        ordering = ["id"]
+        unique_together = ("email",)
+
+    def __str__(self):
+        return f"{self.full_name} {self.email}"
+
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
+    @property
+    def full_name(self):
+        return self.get_full_name()

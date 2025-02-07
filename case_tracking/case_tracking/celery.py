@@ -16,7 +16,7 @@ app.autodiscover_tasks()
 
 app.conf.beat_schedule = {
     "update-case-priority-every-15-minutes": {
-        "task": "yourapp.tasks.update_case_priority",
+        "task": "core.tasks.update_case_priority",
         "schedule": crontab(minute="*/30"),  # every 30 minutes
     },
 }
