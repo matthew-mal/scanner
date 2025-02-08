@@ -1,5 +1,5 @@
-from django.contrib.auth.base_user import AbstractBaseUser
-from django.contrib.auth.models import PermissionsMixin
+from django.contrib.auth.base_user import BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models, transaction
 from django.utils.timezone import now
 from guardian.mixins import GuardianUserMixin
@@ -118,6 +118,12 @@ class Case(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Case"
         verbose_name_plural = "Cases"
+        permissions = [
+            ("view_case_processing_all_cases", "Can view all cases for processing"),
+            ("manage_case", "Can manage a specific case"),
+            ("archive_cases", "Can archive a specific case"),
+            ("return_cases", "Can return a specific case"),
+        ]
 
     def get_shade(self):
         shades = {
@@ -135,7 +141,7 @@ class Case(models.Model):
             stage=new_stage,
             start_time=now(),
             reason=reason,
-            is_return=is_return,
+            is_returned=is_return,
         )
         self.current_stage = new_stage
         self.save()
@@ -195,6 +201,35 @@ class CaseStageLog(models.Model):
         return f"Log for Case {self.case.case_number} at {self.stage}"
 
 
+class CustomUserManager(BaseUserManager):
+    use_in_migrations = True
+
+    def _create_user(self, email, password, **extra_fields):
+        if not email:
+            raise ValueError("The given email must be set")
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_user(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_superuser", False)
+        return self._create_user(email, password, **extra_fields)
+
+    def create_superuser(self, email, password, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
+
+        return self._create_user(email, password, **extra_fields)
+
+    def get_by_natural_key(self, email):
+        return self.get(email=email)
+
+
 class CustomUser(AbstractBaseUser, PermissionsMixin, GuardianUserMixin):
 
     USERNAME_FIELD = "email"
@@ -211,10 +246,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, GuardianUserMixin):
     last_name = models.CharField("last name", max_length=150, blank=True)
     email = models.EmailField("email address", blank=True, unique=True)
     is_staff = models.BooleanField(
-        "Может ли заходить в админку",
+        "Can visit admin panel",
         default=False,
     )
     role = models.CharField(max_length=40, choices=USER_ROLE_CHOICES, default=EMPLOYEE)
+
+    objects = CustomUserManager()
 
     class Meta:
         verbose_name = "User"

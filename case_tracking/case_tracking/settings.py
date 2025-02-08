@@ -68,7 +68,7 @@ AUTHENTICATION_BACKENDS = (
 
 
 AUTH_USER_MODEL = "core.CustomUser"
-
+ANONYMOUS_USER_NAME = None
 GUARDIAN_MONKEY_PATCH = False
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

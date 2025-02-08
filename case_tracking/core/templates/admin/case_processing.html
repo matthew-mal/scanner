@@ -1,0 +1,71 @@
+{% extends "admin/base_site.html" %}
+{% load guardian_tags %}
+
+{% block title %}Обработка кейсов{% endblock %}
+{% block content %}
+    <h1>Обработка кейсов</h1>
+    {% if form %}
+        <form method="get">
+            {{ form.as_p }}
+            <button type="submit" class="button btn-primary">Show</button>
+        </form>
+    {% endif %}
+
+    <br>
+
+    {% if cases_data %}
+        {% get_obj_perms request.user for cases_data.0.2 as "case_perms" %}
+
+        {% for case_text, next_stages, case in cases_data %}
+            {% if forloop.first %}
+                <h2>In Progress</h2>
+            {% endif %}
+
+            {{ case_text|linebreaksbr }}
+            <br>
+
+            {% if next_stages.exists %}
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="case_id" value="{{ case.pk }}">
+                    <br>
+                    {% for next_stage in next_stages %}
+                        <input type="hidden" name="new_stage_id" value="{{ next_stage.pk }}">
+                        <button type="submit" name="transition" class="button btn-primary" value="{{ next_stage.pk }}">
+                            {{ next_stage.display_name }}
+                        </button>
+                    {% endfor %}
+                </form>
+            {% endif %}
+
+            {% if 'archive_cases' in case_perms %}
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="case_id" value="{{ case.pk }}">
+                    <button type="submit" name="archive" class="button btn-danger">Archive</button>
+                </form>
+            {% endif %}
+
+            {% if 'return_cases' in case_perms %}
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="case_id" value="{{ case.pk }}">
+                    <label>Return Reason:</label>
+                    <select name="return_reason_id">
+                        {% for r in return_reasons %}
+                            <option value="{{ r.pk }}">{{ r.reason }}</option>
+                        {% endfor %}
+                    </select>
+                    <br>
+                    <textarea name="return_description" placeholder="Custom return reason..."></textarea>
+                    <br>
+                    <button type="submit" name="return" class="button btn-warning">Return</button>
+                </form>
+            {% endif %}
+
+            {% if not forloop.last %}
+                <br><hr><br>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}
