@@ -126,12 +126,31 @@ class Case(models.Model):
             ("return_cases", "Can return a specific case"),
         ]
 
-    def get_shade(self):
-        shades = {
-            "urgent": "red",
-            "standard": "default_color",
-        }
-        return shades.get(self.priority, "default_color")
+    def save(self, *args, **kwargs):
+        # Проверяем, существует ли объект в базе
+        if self.pk is not None:  # Обновление существующего кейса
+            try:
+                old_case = Case.objects.get(pk=self.pk)
+                if old_case.current_stage != self.current_stage:
+                    # Завершаем предыдущий открытый лог, если он есть
+                    previous_log = self.stage_logs_case.filter(
+                        stage=old_case.current_stage, end_time__isnull=True
+                    ).first()
+                    if previous_log:
+                        previous_log.end_time = now()
+                        previous_log.save()
+                    # Логируем переход на новую стадию
+                    self.log_transition(new_stage=self.current_stage)
+            except Case.DoesNotExist:
+                pass  # Если что-то пошло не так, пропускаем
+        else:  # Новый кейс
+            super().save(*args, **kwargs)  # Сначала сохраняем, чтобы был pk
+            self.log_transition(
+                new_stage=self.current_stage
+            )  # Логируем начальную стадию
+            return  # Выходим, чтобы не дублировать save
+
+        super().save(*args, **kwargs)
 
     def log_transition(self, new_stage, is_return=False, reason=None):
         """
@@ -144,14 +163,14 @@ class Case(models.Model):
             reason=reason,
             is_returned=is_return,
         )
-        self.current_stage = new_stage
-        self.save()
 
     def transition_stage(self, new_stage, is_return=False, reason=None):
         """
         Transition to a new stage and log the transition.
         """
         self.log_transition(new_stage=new_stage, is_return=is_return, reason=reason)
+        self.current_stage = new_stage
+        self.save()
 
     def process_return(self, reason=None, custom_reason=None, description=None):
         """

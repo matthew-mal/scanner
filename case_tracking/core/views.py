@@ -1,6 +1,5 @@
-from django.core.exceptions import ValidationError
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.utils.timezone import now, timedelta
 
 from .models import Case, Stage
@@ -109,6 +108,24 @@ def process_return(request, case_number):
         return JsonResponse({"message": "Invalid request method"}, status=400)
 
 
+def format_timedelta(td):
+    """
+    Format time
+    """
+    if not td:
+        return "0 min."
+    total_seconds = int(td.total_seconds())
+    days = total_seconds // (24 * 3600)
+    hours = (total_seconds % (24 * 3600)) // 3600
+    minutes = (total_seconds % 3600) // 60
+    if days > 0:
+        return f"{days} d., {hours} h., {minutes} min."
+    elif hours > 0:
+        return f"{hours} h., {minutes} min."
+    else:
+        return f"{minutes} min."
+
+
 def case_list(request):
     """
     Display a list of cases with filtering options for priority and stage.
@@ -124,20 +141,44 @@ def case_list(request):
     if stage_id:
         cases = cases.filter(current_stage__id=stage_id)
 
-    case_data = [
-        {
-            "case_number": case.case_number,
-            "current_stage": case.current_stage.name,
-            "priority": case.priority,
-            "time_on_stage": case.updated_at - case.created_at,
-        }
-        for case in cases
-    ]
+    case_data = []
+    for case in cases:
+        # Используем related_name="stage_logs_case" для доступа к логам
+        last_stage_log = (
+            case.stage_logs_case.filter(stage=case.current_stage)
+            .order_by("-start_time")
+            .first()
+        )
+        # Если end_time есть, используем его, иначе считаем до текущего времени
+        time_on_stage = (
+            (last_stage_log.end_time - last_stage_log.start_time)
+            if last_stage_log and last_stage_log.end_time
+            else (now() - last_stage_log.start_time)
+            if last_stage_log
+            else (now() - case.created_at)  # if no logs, created_at
+        )
+        case_data.append(
+            {
+                "case_number": case.case_number,
+                "current_stage": case.current_stage.name,
+                "priority": case.priority,
+                "time_on_stage": format_timedelta(time_on_stage),
+            }
+        )
 
-    return JsonResponse({"cases": case_data}, safe=False)
+    stages = Stage.objects.all()
+
+    context = {
+        "cases": case_data,
+        "stages": stages,
+        "priority": priority,
+        "stage_id": stage_id,
+    }
+
+    return render(request, "case_list.html", context)
 
 
-def archived_cases(request):
+def archive_case(request):
     """
     Show all archived cases.
     """
@@ -152,23 +193,6 @@ def archived_cases(request):
     ]
 
     return JsonResponse({"archived_cases": archived_case_data}, safe=False)
-
-
-def ensure_case_has_stage(request, case_number):
-    """
-    Ensure that each case has a stage assigned before saving.
-    """
-    if request.method == "POST":
-        case = get_object_or_404(Case, case_number=case_number)
-
-        if not case.current_stage:
-            raise ValidationError(
-                "Each case must be assigned to a stage before saving."
-            )
-
-        return JsonResponse({"message": "Case stage is valid and saved."}, status=200)
-    else:
-        return JsonResponse({"message": "Invalid request method"}, status=400)
 
 
 def update_case_priority(request, case_number):

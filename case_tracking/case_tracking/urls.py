@@ -26,5 +26,5 @@ urlpatterns = [
     path("update_case_stage/", views.update_case_stage, name="update_case_stage"),
     path("process_return/", views.process_return, name="process_return"),
     path("case_list/", views.case_list, name="case_list"),
-    path("archive/", views.archived_cases, name="archive"),
+    path("archive/", views.archive_case, name="archive"),
 ]
