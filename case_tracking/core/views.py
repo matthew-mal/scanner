@@ -17,8 +17,8 @@ def register_case(request):
         priority = request.POST.get(
             "priority", "standard"
         )  # Default to 'standard' if not provided
-        material = request.POST.get("material")
-        shade = request.POST.get("shade", "")
+        # material = request.POST.get("material")
+        # shade = request.POST.get("shade", "")
         current_stage = (
             Stage.objects.first()
         )  # Set the initial stage (could be default stage)
@@ -27,8 +27,8 @@ def register_case(request):
         case = Case.objects.create(
             case_number=case_number,
             priority=priority,
-            material=material,
-            shade=shade,
+            # material=material,
+            # shade=shade,
             current_stage=current_stage,
             created_at=now(),
         )

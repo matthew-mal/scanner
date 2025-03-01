@@ -55,6 +55,7 @@ class ReturnReason(models.Model):
         ("wrong_design", "Wrong Design"),
         ("chip", "Chip"),
         ("color_mismatch", "Color Mismatch"),
+        ("other", "Other (Specify Below)"),
     ]
 
     reason = models.CharField(

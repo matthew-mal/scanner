@@ -1,9 +1,19 @@
 {% extends "admin/base_site.html" %}
 {% load guardian_tags %}
 
-{% block title %}Обработка кейсов{% endblock %}
+{% block title %}Case Processing{% endblock %}
 {% block content %}
-    <h1>Обработка кейсов</h1>
+    <h1>Case Processing</h1>
+
+    <style>
+        .urgent-case {
+            background-color: #ff6f61;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
     {% if form %}
         <form method="get">
             {{ form.as_p }}
@@ -20,7 +30,7 @@
             {% if forloop.first %}
                 <h2>In Progress</h2>
             {% endif %}
-
+            <div class="{% if case.priority == 'urgent' %}urgent-case{% endif %}">
             {{ case_text|linebreaksbr }}
             <br>
 
@@ -42,7 +52,7 @@
                 <form method="post">
                     {% csrf_token %}
                     <input type="hidden" name="case_id" value="{{ case.pk }}">
-                    <button type="submit" name="archive" class="button btn-danger">Archive</button>
+                    <button type="submit" name="archive" class="button btn-danger" {% if case.archived %} disabled {% endif %}>Archive</button>
                 </form>
             {% endif %}
 
@@ -57,11 +67,12 @@
                         {% endfor %}
                     </select>
                     <br>
-                    <textarea name="return_description" placeholder="Custom return reason..."></textarea>
+                    <textarea name="return_description" placeholder="Return description..."></textarea>
                     <br>
-                    <button type="submit" name="return" class="button btn-warning">Return</button>
+                    <button type="submit" name="return" class="button btn-warning" {% if case.is_returned %} disabled {% endif %}>Return</button>
                 </form>
             {% endif %}
+            </div>
 
             {% if not forloop.last %}
                 <br><hr><br>

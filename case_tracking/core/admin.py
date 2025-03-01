@@ -5,7 +5,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.urls import path
 
 from .admin_views import CaseProcessing
-from .models import Case, CaseStageLog, CustomUser, NextStage, ReturnReason, Stage
+from .models import Case, CaseStageLog, CustomUser, NextStage, Stage
 
 
 class CustomAdminSite(AdminSite):
@@ -90,8 +90,3 @@ class CustomUserAdmin(UserAdmin):
     )
     ordering = ("id",)
     list_filter = ("role",)
-
-
-@admin.register(ReturnReason)
-class ReturnReasonAdmin(admin.ModelAdmin):
-    list_display = ("id", "reason", "custom_reason")
