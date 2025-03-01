@@ -2,6 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.contrib.auth.admin import UserAdmin
+from django.shortcuts import render
 from django.urls import path
 
 from .admin_views import CaseProcessing
@@ -23,6 +24,16 @@ class CustomAdminSite(AdminSite):
             ),
         ]
         return custom_urls + urls
+
+    def index(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        context = {
+            "site_header": self.site_header,
+            "site_title": self.site_title,
+            "index_title": self.index_title,
+            **extra_context,
+        }
+        return render(request, "admin/custom_index.html", context)
 
 
 custom_admin_site = CustomAdminSite(name="case_processing")
