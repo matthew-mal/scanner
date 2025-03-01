@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">{{ title }}</h2>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <h4>Welcome, {{ user.first_name }} {{ user.last_name }}!</h4>
+            <p>You are logged in as an <strong>Employee</strong>.</p>
+            <!-- Здесь можно добавить функционал для сотрудника -->
+            <p>This is where employee-specific content will go, like task lists or case assignments.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

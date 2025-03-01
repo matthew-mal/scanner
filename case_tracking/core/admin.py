@@ -10,7 +10,8 @@ from .models import Case, CaseStageLog, CustomUser, NextStage, Stage
 
 class CustomAdminSite(AdminSite):
     site_header = "Case Processing Admin"
-    site_title = "Admin Portal"
+    site_title = "Case Processing Admin"
+    index_title = "Welcome to Case Processing Admin"
 
     def get_urls(self):
         urls = super().get_urls()
@@ -18,13 +19,13 @@ class CustomAdminSite(AdminSite):
             path(
                 "case_processing/",
                 self.admin_view(CaseProcessing.as_view()),
-                name="case_processing",
+                name="",
             ),
         ]
         return custom_urls + urls
 
 
-custom_admin_site = CustomAdminSite(name="custom_admin")
+custom_admin_site = CustomAdminSite(name="case_processing")
 
 
 class CaseAdminForm(forms.ModelForm):
@@ -62,6 +63,7 @@ class CaseAdmin(admin.ModelAdmin):
         "current_stage",
         "created_at",
         "archived",
+        "is_returned",
     )
     list_filter = ("priority", "current_stage", "archived")
     search_fields = ("case_number", "current_stage", "archived")

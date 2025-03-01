@@ -1,25 +1,31 @@
+import logging
+
 from celery import shared_task
-from django.shortcuts import get_object_or_404
 from django.utils.timezone import now, timedelta
 
 from .models import Case
 
+logger = logging.getLogger(__name__)
+
 
 @shared_task
-def update_case_priority_task(case_number, priority):
+def check_and_update_case_priorities():
     """
-    Update the priority of a case manually or automatically change priority after 16 hours of inactivity.
+    Check all cases and update their priority to 'urgent' if they've been idle for more than 16 hours.
     """
-    # Get the case object
-    case = get_object_or_404(Case, case_number=case_number)
+    # Получаем все неархивные кейсы с приоритетом "standard"
+    cases = Case.objects.filter(archived=False, is_returned=False, priority="standard")
 
-    # Check if the case has been idle for more than 16 hours
-    if case.updated_at + timedelta(hours=16) < now() and case.priority != "urgent":
-        case.priority = "urgent"
-        case.save()
+    for case in cases:
+        if case.updated_at + timedelta(hours=16) < now():
+            case.priority = "urgent"
+            case.save()
+            logger.info(
+                f"Case {case.case_number} priority escalated to 'urgent' due to 16+ hours of inactivity"
+            )
+        else:
+            logger.debug(
+                f"Case {case.case_number} still within 16-hour window, no update needed"
+            )
 
-    # Update priority
-    case.priority = priority
-    case.save()
-
-    return f"Priority of case {case_number} updated to {priority}"
+    return "Priority check completed"

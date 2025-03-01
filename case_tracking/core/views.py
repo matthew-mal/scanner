@@ -1,9 +1,33 @@
+from django.contrib import messages
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.timezone import now, timedelta
 
-from .models import Case, Stage
-from .tasks import update_case_priority_task
+from .forms import UserLoginForm
+from .models import Case, CustomUser, Stage
+
+
+def login_view(request):
+    if request.method == "POST":
+        form = UserLoginForm(data=request.POST)
+        if form.is_valid():
+            email = form.cleaned_data.get("username")
+            password = form.cleaned_data.get("password")
+            user = authenticate(request, username=email, password=password)
+            if user is not None:
+                login(request, user)
+                if user.role == CustomUser.MANAGER:
+                    return redirect("manager_dashboard")
+                return redirect("employee_dashboard")
+            else:
+                messages.error(request, "Invalid email or password")
+        else:
+            messages.error(request, "Invalid form data")
+    else:
+        form = UserLoginForm()
+    return render(request, "users/login.html", {"form": form})
 
 
 def register_case(request):
@@ -158,7 +182,7 @@ def archived_case(request):
     """
     Display a list of archived cases.
     """
-    archived_cases = Case.objects.filter(archived=True, is_returned=False)
+    archived_cases = Case.objects.filter(archived=True)
     archived_case_data = [
         {
             "case_number": case.case_number,
@@ -221,19 +245,34 @@ def process_return(request, case_number):
         return JsonResponse({"message": "Invalid request method"}, status=400)
 
 
-def update_case_priority(request, case_number):
-    """
-    Update the priority of a case and call the Celery task to update it asynchronously.
-    """
-    if request.method == "POST":
-        priority = request.POST.get("priority")
-
-        # Call the Celery task asynchronously
-        update_case_priority_task.delay(case_number, priority)
-
-        return JsonResponse(
-            {"message": f"Priority update for case {case_number} is in progress."},
-            status=200,
+@login_required
+def manager_dashboard(request):
+    if request.user.role != CustomUser.MANAGER:
+        messages.error(
+            request, "You don't have permission to access the manager dashboard."
         )
-    else:
-        return JsonResponse({"message": "Invalid request method"}, status=400)
+        return redirect("employee_dashboard")
+    context = {
+        "user": request.user,
+        "title": "Manager Dashboard",
+        "can_access_admin": request.user.is_staff,  # Для стандартного админа
+        "can_access_custom_admin": request.user.role
+        == CustomUser.MANAGER,  # Для кастомного
+    }
+    return render(request, "users/manager_dashboard.html", context)
+
+
+@login_required
+def employee_dashboard(request):
+    if request.user.role != CustomUser.EMPLOYEE:
+        # Если менеджер пытается зайти на employee_dashboard, перенаправляем его на manager_dashboard
+        if request.user.role == CustomUser.MANAGER:
+            return redirect("manager_dashboard")
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect("login")
+    # Здесь можно добавить логику для сотрудника
+    context = {
+        "user": request.user,
+        "title": "Employee Dashboard",
+    }
+    return render(request, "users/employee_dashboard.html", context)

@@ -62,12 +62,14 @@ WSGI_APPLICATION = "case_tracking.wsgi.application"
 
 
 AUTHENTICATION_BACKENDS = (
+    "core.authentication.EmailBackend",
     "django.contrib.auth.backends.ModelBackend",
     "guardian.backends.ObjectPermissionBackend",
 )
 
 
 AUTH_USER_MODEL = "core.CustomUser"
+LOGOUT_REDIRECT_URL = "/login/"
 ANONYMOUS_USER_NAME = None
 GUARDIAN_MONKEY_PATCH = False
 # Password validation
@@ -137,10 +139,22 @@ DATABASES = {
     "default": dj_database_url.config(default=config("DATABASE_URL"), conn_max_age=600)
 }
 
+# Celery settings
 CELERY_TIMEZONE = "UTC"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_BROKER_URL = config("CELERY_BROKER_URL")
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+
+# Celery Beat settings
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_BEAT_SCHEDULE = {
+    "check-case-priorities-every-30-minutes": {
+        "task": "core.tasks.check_and_update_case_priorities",
+        "schedule": 1800.0,  # 30 minutes
+    },
+}
+
+CELERY_RESULT_BACKEND = config("CELERY_BROKER_URL")
 
 
 # Logger
