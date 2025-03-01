@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Archive cases</h2>
+    <!-- Кнопка возврата к активным кейсам -->
+    <a href="{% url 'case_list' %}" class="btn btn-primary" style="margin-bottom: 20px;">Return to active cases</a>
+
+    <table class="table table-bordered table-striped" style="background-color: #f8f9fa;">
+        <thead class="thead-dark">
+            <tr>
+                <th>Case number</th>
+                <th>Date</th>
+                <th>Last stage</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for case in archived_cases %}
+                <tr>
+                    <td>{{ case.case_number }}</td>
+                    <td>{{ case.archived_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ case.current_stage }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">No archive cases to display</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .container {
+        margin-top: 20px;
+    }
+    .table {
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .thead-dark th {
+        background-color: #343a40;
+        color: white;
+    }
+</style>
+{% endblock %}

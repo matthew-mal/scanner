@@ -84,30 +84,6 @@ def update_case_stage(request, case_number):
         return JsonResponse({"message": "Invalid request method"}, status=400)
 
 
-def process_return(request, case_number):
-    """
-    Process a return of a case by scanning it again and specifying the return reason.
-    """
-    if request.method == "POST":
-        case = get_object_or_404(Case, case_number=case_number)
-
-        if case.is_returned:
-            return JsonResponse(
-                {"message": "This case has already been returned."}, status=400
-            )
-
-        reason = request.POST.get("reason")
-        custom_reason = request.POST.get("custom_reason", None)
-
-        case.process_return(reason=reason, custom_reason=custom_reason)
-
-        return JsonResponse(
-            {"message": f"Case {case_number} processed for return"}, status=200
-        )
-    else:
-        return JsonResponse({"message": "Invalid request method"}, status=400)
-
-
 def format_timedelta(td):
     """
     Format time
@@ -133,7 +109,7 @@ def case_list(request):
     priority = request.GET.get("priority", None)
     stage_id = request.GET.get("stage", None)
 
-    cases = Case.objects.all()
+    cases = Case.objects.filter(archived=False, is_returned=False)
 
     if priority:
         cases = cases.filter(priority=priority)
@@ -175,24 +151,74 @@ def case_list(request):
         "stage_id": stage_id,
     }
 
-    return render(request, "case_list.html", context)
+    return render(request, "cases/case_list.html", context)
 
 
-def archive_case(request):
+def archived_case(request):
     """
-    Show all archived cases.
+    Display a list of archived cases.
     """
-    archived_cases = Case.objects.filter(archived=True)
+    archived_cases = Case.objects.filter(archived=True, is_returned=False)
     archived_case_data = [
         {
             "case_number": case.case_number,
+            "current_stage": case.current_stage.name,
             "archived_at": case.archived_at,
-            "return_reason": case.return_reason.reason if case.return_reason else None,
         }
         for case in archived_cases
     ]
 
-    return JsonResponse({"archived_cases": archived_case_data}, safe=False)
+    context = {
+        "archived_cases": archived_case_data,
+    }
+
+    return render(request, "cases/archive_case.html", context)
+
+
+def returned_case(request):
+    """
+    Display a list of returned cases.
+    """
+    returned_cases = Case.objects.filter(is_returned=True, archived=False)
+    returned_case_data = [
+        {
+            "case_number": case.case_number,
+            "current_stage": case.current_stage.name,
+            "return_reason": case.return_reason.reason if case.return_reason else "",
+            "return_description": case.return_description or "No description",
+        }
+        for case in returned_cases
+    ]
+
+    context = {
+        "returned_cases": returned_case_data,
+    }
+
+    return render(request, "cases/returned_case.html", context)
+
+
+def process_return(request, case_number):
+    """
+    Process a return of a case by scanning it again and specifying the return reason.
+    """
+    if request.method == "POST":
+        case = get_object_or_404(Case, case_number=case_number)
+
+        if case.is_returned:
+            return JsonResponse(
+                {"message": "This case has already been returned."}, status=400
+            )
+
+        reason = request.POST.get("reason")
+        custom_reason = request.POST.get("custom_reason", None)
+
+        case.process_return(reason=reason, custom_reason=custom_reason)
+
+        return JsonResponse(
+            {"message": f"Case {case_number} processed for return"}, status=200
+        )
+    else:
+        return JsonResponse({"message": "Invalid request method"}, status=400)
 
 
 def update_case_priority(request, case_number):

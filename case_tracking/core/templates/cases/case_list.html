@@ -2,6 +2,15 @@
 
 {% block content %}
 <div class="container">
+    <!-- Блок кнопок в левом верхнем углу -->
+    <div class="action-buttons mb-3">
+        <a href="{% url 'archived_cases' %}" class="btn btn-outline-secondary btn-sm mr-2" style="border-radius: 20px; padding: 6px 20px;">
+            <i class="fas fa-archive mr-1"></i> Archived cases
+        </a>
+        <a href="{% url 'returned_cases' %}" class="btn btn-outline-warning btn-sm" style="border-radius: 20px; padding: 6px 20px;">
+            <i class="fas fa-undo mr-1"></i> Returned cases
+        </a>
+    </div>
     <!-- Filters -->
     <div class="filter-section" style="margin-bottom: 20px;">
         <form method="GET" class="form-inline">
