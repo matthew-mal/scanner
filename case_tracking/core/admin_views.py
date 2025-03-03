@@ -37,7 +37,10 @@ class CaseProcessing(View):
                 cases = cases.filter(pk=case_id)
 
             if not cases.exists():
-                messages.error(request, "You have no rights to view it.")
+                if not choices_cases:
+                    context["no_active_cases"] = True
+                else:
+                    messages.error(request, "You have no rights to view it.")
                 return render(request, "admin/case_processing.html", context)
 
             for case in cases:
@@ -47,6 +50,7 @@ class CaseProcessing(View):
 
             context["cases_data"] = cases_data
             context["form"] = CaseProcessingForm(choices_cases, case_id)
+            context["no_active_cases"] = False
 
             return render(request, "admin/case_processing.html", context)
         except Exception as e:

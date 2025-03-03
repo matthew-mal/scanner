@@ -13,7 +13,16 @@
             border-radius: 5px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+        .no-cases-message {
+            padding: 20px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            text-align: center;
+            margin-top: 20px;
+        }
     </style>
+
     {% if form %}
         <form method="get">
             {{ form.as_p }}
@@ -24,7 +33,12 @@
 
     <br>
 
-    {% if cases_data %}
+    {% if no_active_cases %}
+        <div class="no-cases-message">
+            <h3>No active cases now</h3>
+            <p>All cases have either been processed, or are in the archive or on return.</p>
+        </div>
+    {% elif cases_data %}
         {% get_obj_perms request.user for cases_data.0.2 as "case_perms" %}
 
         {% for case_text, next_stages, case in cases_data %}
