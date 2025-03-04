@@ -33,6 +33,17 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="form-group" style="margin-left: 20px;">
+                <label for="user">Employee:</label>
+                <select name="user" id="user" class="form-control">
+                    <option value="">All</option>
+                    {% for employee in employees %}
+                        <option value="{{ employee.id }}" {% if employee.id|stringformat:"s" == employee_id %}selected{% endif %}>
+                            {{ employee.full_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
             <button type="submit" class="btn btn-primary" style="margin-left: 20px;">Filter</button>
         </form>
     </div>
@@ -45,6 +56,7 @@
                 <th>Current stage</th>
                 <th>Priority</th>
                 <th>Stage time</th>
+                <th>Last updated by</th> <!-- Новая колонка -->
             </tr>
         </thead>
         <tbody>
@@ -58,10 +70,11 @@
                         </span>
                     </td>
                     <td>{{ case.time_on_stage }}</td>
+                    <td>{{ case.last_updated_by }}</td> <!-- Отображаем пользователя -->
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center">No cases to display</td>
+                    <td colspan="5" class="text-center">No cases to display</td> <!-- Обновили colspan -->
                 </tr>
             {% endfor %}
         </tbody>

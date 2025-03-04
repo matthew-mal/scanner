@@ -141,18 +141,21 @@ def case_list(request):
     """
     priority = request.GET.get("priority", None)
     stage_id = request.GET.get("stage", None)
+    user_id = request.GET.get("user", None)
 
-    cases = Case.objects.filter(archived=False, is_returned=False)
+    cases = Case.objects.filter(archived=False, is_returned=False).select_related(
+        "current_stage", "last_updated_by"
+    )
 
     if priority:
         cases = cases.filter(priority=priority)
-
     if stage_id:
         cases = cases.filter(current_stage__id=stage_id)
+    if user_id:
+        cases = cases.filter(last_updated_by__id=user_id)
 
     case_data = []
     for case in cases:
-        # Используем related_name="stage_logs_case" для доступа к логам
         last_stage_log = (
             case.stage_logs_case.filter(stage=case.current_stage)
             .order_by("-start_time")
@@ -164,7 +167,7 @@ def case_list(request):
             if last_stage_log and last_stage_log.end_time
             else (now() - last_stage_log.start_time)
             if last_stage_log
-            else (now() - case.created_at)  # if no logs, created_at
+            else (now() - case.created_at)
         )
         case_data.append(
             {
@@ -172,16 +175,21 @@ def case_list(request):
                 "current_stage": case.current_stage.name,
                 "priority": case.priority,
                 "time_on_stage": format_timedelta(time_on_stage),
+                "last_updated_by": case.last_updated_by.full_name
+                if case.last_updated_by
+                else "N/A",  # Добавляем пользователя
             }
         )
 
     stages = Stage.objects.all()
-
+    employees = CustomUser.objects.filter(is_active=True)
     context = {
         "cases": case_data,
         "stages": stages,
+        "employees": employees,
         "priority": priority,
         "stage_id": stage_id,
+        "user_id": user_id,
     }
 
     return render(request, "cases/case_list.html", context)
