@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "guardian",
     "core.apps.CoreConfig",
+    "rest_framework",
 ]
 
 MIDDLEWARE = [

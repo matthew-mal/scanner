@@ -1,12 +1,21 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.timezone import now, timedelta
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .forms import UserLoginForm
-from .models import Case, CustomUser, Stage
+from .models import Case, CustomUser, NextStage, Stage
+from .serializers import BarcodeScanSerializer
+
+logger = logging.getLogger(__name__)
 
 
 def login_view(request):
@@ -276,3 +285,66 @@ def employee_dashboard(request):
         "title": "Employee Dashboard",
     }
     return render(request, "users/employee_dashboard.html", context)
+
+
+class ScanBarcodeView(APIView):
+    def post(self, request):
+        serializer = BarcodeScanSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        employee_barcode = serializer.validated_data["employee_barcode"]
+        case_barcode = serializer.validated_data["case_barcode"]
+        stage_barcode = serializer.validated_data["stage_barcode"]
+
+        try:
+            # Находим сотрудника
+            employee = CustomUser.objects.get(barcode=employee_barcode, is_active=True)
+            # Находим кейс
+            case = Case.objects.get(
+                barcode=case_barcode, archived=False, is_returned=False
+            )
+            # Находим стадию
+            new_stage = Stage.objects.get(barcode=stage_barcode)
+        except ObjectDoesNotExist as e:
+            logger.error(f"Invalid barcode: {e}")
+            return Response(
+                {"error": f"Invalid barcode: {e}"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Проверяем, возможен ли переход
+        if not NextStage.objects.filter(
+            current=case.current_stage, next=new_stage
+        ).exists():
+            logger.error(f"Invalid transition from {case.current_stage} to {new_stage}")
+            return Response(
+                {
+                    "error": f"Cannot transition from {case.current_stage.name} to {new_stage.name}"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Проверяем права сотрудника (можно настроить через permissions)
+        # Предположим, что у Employee есть связь с группами или правами через Django Guardian
+        if not request.user.has_perm(
+            "core.manage_cases", case
+        ):  # Если используете аутентификацию
+            return Response(
+                {"error": "Employee has no permission to manage this case"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            # Выполняем переход
+            case.transition_stage(new_stage=new_stage, employee=employee)
+            return Response(
+                {
+                    "message": f"Case {case.case_number} transitioned to {new_stage.name} by {employee}"
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            logger.error(f"Error during transition: {e}")
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

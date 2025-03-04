@@ -51,9 +51,7 @@ class CaseProcessing(View):
             context["cases_data"] = cases_data
             context["form"] = CaseProcessingForm(choices_cases, case_id)
             context["no_active_cases"] = False
-            context[
-                "return_reasons"
-            ] = ReturnReason.objects.all()  # Добавлено для формы возврата
+            context["return_reasons"] = ReturnReason.objects.all()
 
             return render(request, "admin/case_processing.html", context)
         except Exception as e:
@@ -62,13 +60,19 @@ class CaseProcessing(View):
 
     def post(self, request):
         try:
+            user = request.user
+
             if "transition" in request.POST:
                 case = Case.objects.get(pk=request.POST["case_id"])
                 new_stage = Stage.objects.get(pk=request.POST["transition"])
 
                 if request.user.has_perm("core.manage_cases", case):
-                    case.transition_stage(new_stage=new_stage)
+                    case.transition_stage(new_stage=new_stage, user=user)
                     case.refresh_from_db()
+                    messages.success(
+                        request,
+                        f"Case #{case.case_number} transitioned to {new_stage.name}",
+                    )
                 else:
                     messages.error(request, "You have no rights to see that stage.")
 
@@ -76,6 +80,8 @@ class CaseProcessing(View):
                 case = Case.objects.get(pk=request.POST["case_id"])
                 if request.user.has_perm("core.archive_cases", case):
                     case.archive_case()
+                    case.last_updated_by = user
+                    case.save()
                     messages.success(
                         request, f"Case #{case.case_number} archived successfully"
                     )
@@ -94,6 +100,8 @@ class CaseProcessing(View):
                 if request.user.has_perm("core.return_cases", case):
                     try:
                         case.process_return(reason=reason, description=description)
+                        case.last_updated_by = user
+                        case.save()
                         messages.success(
                             request, f"Case #{case.case_number} returned successfully"
                         )

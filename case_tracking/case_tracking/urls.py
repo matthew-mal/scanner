@@ -33,4 +33,5 @@ urlpatterns = [
     path("process_return/", views.process_return, name="process_return"),
     path("archived_cases/", views.archived_case, name="archived_cases"),
     path("returned_cases/", views.returned_case, name="returned_cases"),
+    path("api/scan", views.ScanBarcodeView.as_view(), name="scan_barcode"),
 ]

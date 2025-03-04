@@ -5,12 +5,91 @@ from django.utils.timezone import now
 from guardian.mixins import GuardianUserMixin
 
 
+class CustomUserManager(BaseUserManager):
+    use_in_migrations = True
+
+    def _create_user(self, email, password, **extra_fields):
+        if not email:
+            raise ValueError("The given email must be set")
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_user(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_superuser", False)
+        return self._create_user(email, password, **extra_fields)
+
+    def create_superuser(self, email, password, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
+
+        return self._create_user(email, password, **extra_fields)
+
+    def get_by_natural_key(self, email):
+        return self.get(email=email)
+
+
+class CustomUser(AbstractBaseUser, PermissionsMixin, GuardianUserMixin):
+
+    USERNAME_FIELD = "email"
+
+    EMPLOYEE = "employee"
+    MANAGER = "manager"
+
+    USER_ROLE_CHOICES = (
+        (EMPLOYEE, "Employee"),
+        (MANAGER, "Manager"),
+    )
+
+    first_name = models.CharField("first name", max_length=30, blank=True)
+    last_name = models.CharField("last name", max_length=150, blank=True)
+    email = models.EmailField("email address", blank=True, unique=True)
+    is_staff = models.BooleanField(
+        "Can visit admin panel",
+        default=False,
+    )
+    role = models.CharField(max_length=40, choices=USER_ROLE_CHOICES, default=EMPLOYEE)
+    barcode = models.CharField(
+        max_length=50,
+        unique=True,
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Unique bar code",
+    )  # Переносим barcode из Employee
+    is_active = models.BooleanField(default=True)  # Для деактивации пользователей
+
+    objects = CustomUserManager()
+
+    class Meta:
+        verbose_name = "Employee"
+        verbose_name_plural = "Employees"
+        ordering = ["id"]
+        unique_together = ("email",)
+
+    def __str__(self):
+        return f"{self.full_name} {self.email}"
+
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
+    @property
+    def full_name(self):
+        return self.get_full_name()
+
+
 class Stage(models.Model):
     """
     Represents a stage in the workflow.
     """
 
     name = models.CharField(max_length=32, unique=True, db_index=True)
+    barcode = models.CharField(max_length=50, unique=True, db_index=True, null=True)
     display_name = models.CharField(max_length=64)
     note = models.TextField(blank=True, null=True)
 
@@ -84,6 +163,14 @@ class Case(models.Model):
     ]
 
     case_number = models.CharField(max_length=100, unique=True)
+    barcode = models.CharField(max_length=50, unique=True, db_index=True, null=True)
+    last_updated_by = models.ForeignKey(
+        "CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cases_updated",
+    )
     priority = models.CharField(
         max_length=10, choices=PRIORITY_CHOICES, default="standard"
     )
@@ -152,25 +239,31 @@ class Case(models.Model):
 
         super().save(*args, **kwargs)
 
-    def log_transition(self, new_stage, is_return=False, reason=None):
+    def transition_stage(self, new_stage, user=None, is_return=False, reason=None):
         """
-        Log the transition to a new stage, with optional return flag and reason.
+        Transition to a new stage and log the transition, associating it with a user.
         """
+        self.log_transition(
+            new_stage=new_stage, is_return=is_return, reason=reason, user=user
+        )
+        self.current_stage = new_stage
+        self.last_updated_by = user
+        self.save()
+
+    def log_transition(self, new_stage, is_return=False, reason=None, user=None):
+        """
+        Log the transition to a new stage.
+        """
+        previous_log = self.stage_logs_case.filter(end_time__isnull=True).first()
+        if previous_log:
+            previous_log.end_time = now()
+            previous_log.save()
         CaseStageLog.objects.create(
             case=self,
             stage=new_stage,
-            start_time=now(),
-            reason=reason,
+            user=user,  # Используем user вместо employee
             is_returned=is_return,
         )
-
-    def transition_stage(self, new_stage, is_return=False, reason=None):
-        """
-        Transition to a new stage and log the transition.
-        """
-        self.log_transition(new_stage=new_stage, is_return=is_return, reason=reason)
-        self.current_stage = new_stage
-        self.save()
 
     def process_return(self, reason=None, custom_reason=None, description=None):
         """
@@ -207,6 +300,13 @@ class CaseStageLog(models.Model):
     stage = models.ForeignKey(
         Stage, on_delete=models.PROTECT, related_name="stage_logs_stage"
     )
+    user = models.ForeignKey(
+        "CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stage_logs",
+    )
     start_time = models.DateTimeField(default=now)
     end_time = models.DateTimeField(null=True, blank=True)
     reason = models.TextField(blank=True, null=True)
@@ -219,72 +319,3 @@ class CaseStageLog(models.Model):
 
     def __str__(self):
         return f"Log for Case {self.case.case_number} at {self.stage}"
-
-
-class CustomUserManager(BaseUserManager):
-    use_in_migrations = True
-
-    def _create_user(self, email, password, **extra_fields):
-        if not email:
-            raise ValueError("The given email must be set")
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_user(self, email, password=None, **extra_fields):
-        extra_fields.setdefault("is_superuser", False)
-        return self._create_user(email, password, **extra_fields)
-
-    def create_superuser(self, email, password, **extra_fields):
-        extra_fields.setdefault("is_staff", True)
-        extra_fields.setdefault("is_superuser", True)
-
-        if extra_fields.get("is_superuser") is not True:
-            raise ValueError("Superuser must have is_superuser=True.")
-
-        return self._create_user(email, password, **extra_fields)
-
-    def get_by_natural_key(self, email):
-        return self.get(email=email)
-
-
-class CustomUser(AbstractBaseUser, PermissionsMixin, GuardianUserMixin):
-
-    USERNAME_FIELD = "email"
-
-    EMPLOYEE = "employee"
-    MANAGER = "manager"
-
-    USER_ROLE_CHOICES = (
-        (EMPLOYEE, "Employee"),
-        (MANAGER, "Manager"),
-    )
-
-    first_name = models.CharField("first name", max_length=30, blank=True)
-    last_name = models.CharField("last name", max_length=150, blank=True)
-    email = models.EmailField("email address", blank=True, unique=True)
-    is_staff = models.BooleanField(
-        "Can visit admin panel",
-        default=False,
-    )
-    role = models.CharField(max_length=40, choices=USER_ROLE_CHOICES, default=EMPLOYEE)
-
-    objects = CustomUserManager()
-
-    class Meta:
-        verbose_name = "User"
-        verbose_name_plural = "Users"
-        ordering = ["id"]
-        unique_together = ("email",)
-
-    def __str__(self):
-        return f"{self.full_name} {self.email}"
-
-    def get_full_name(self):
-        return f"{self.first_name} {self.last_name}".strip()
-
-    @property
-    def full_name(self):
-        return self.get_full_name()

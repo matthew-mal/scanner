@@ -71,6 +71,7 @@ class CaseAdmin(admin.ModelAdmin):
     list_display = (
         "case_number",
         "priority",
+        "last_updated_by",
         "current_stage",
         "created_at",
         "archived",
@@ -80,10 +81,23 @@ class CaseAdmin(admin.ModelAdmin):
     search_fields = ("case_number", "current_stage", "archived")
     readonly_fields = ("created_at", "updated_at")
 
+    def save_model(self, request, obj, form, change):
+        """
+        Переопределяем сохранение объекта в админке, чтобы устанавливать last_updated_by.
+        """
+        user = request.user  # Текущий пользователь — это CustomUser
+        if change and "current_stage" in form.changed_data:
+            old_stage = Case.objects.get(pk=obj.pk).current_stage
+            if old_stage != obj.current_stage:
+                obj.transition_stage(new_stage=obj.current_stage, user=user)
+        else:
+            obj.last_updated_by = user
+            super().save_model(request, obj, form, change)
+
 
 @admin.register(CaseStageLog)
 class CaseStageLogAdmin(admin.ModelAdmin):
-    list_display = ("case", "stage", "start_time", "reason")
+    list_display = ("case", "stage", "user", "start_time", "reason")
     list_filter = ("stage",)
     search_fields = ("case__case_number",)
 
