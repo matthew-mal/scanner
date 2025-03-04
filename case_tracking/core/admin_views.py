@@ -51,6 +51,9 @@ class CaseProcessing(View):
             context["cases_data"] = cases_data
             context["form"] = CaseProcessingForm(choices_cases, case_id)
             context["no_active_cases"] = False
+            context[
+                "return_reasons"
+            ] = ReturnReason.objects.all()  # Добавлено для формы возврата
 
             return render(request, "admin/case_processing.html", context)
         except Exception as e:
@@ -61,7 +64,7 @@ class CaseProcessing(View):
         try:
             if "transition" in request.POST:
                 case = Case.objects.get(pk=request.POST["case_id"])
-                new_stage = Stage.objects.get(pk=request.POST["new_stage_id"])
+                new_stage = Stage.objects.get(pk=request.POST["transition"])
 
                 if request.user.has_perm("core.manage_cases", case):
                     case.transition_stage(new_stage=new_stage)

@@ -101,5 +101,22 @@ class CustomUserAdmin(UserAdmin):
             {"fields": ("is_staff", "is_superuser", "groups", "user_permissions")},
         ),
     )
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "email",
+                    "password1",
+                    "password2",
+                    "first_name",
+                    "last_name",
+                    "role",
+                    "is_staff",
+                ),
+            },
+        ),
+    )
     ordering = ("id",)
     list_filter = ("role",)

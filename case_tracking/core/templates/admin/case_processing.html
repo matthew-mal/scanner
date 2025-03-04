@@ -6,13 +6,6 @@
     <h1>Case Processing</h1>
 
     <style>
-        .urgent-case {
-            background-color: #ff6f61;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
         .no-cases-message {
             padding: 20px;
             background-color: #f8f9fa;
@@ -55,12 +48,13 @@
                     <input type="hidden" name="case_id" value="{{ case.pk }}">
                     <br>
                     {% for next_stage in next_stages %}
-                        <input type="hidden" name="new_stage_id" value="{{ next_stage.pk }}">
-                        <button type="submit" name="transition" class="button btn-primary" value="{{ next_stage.pk }}">
+                        <button type="submit" name="transition" class="button btn-primary" value="{{ next_stage.next.pk }}">
                             {{ next_stage.display_name }}
                         </button>
                     {% endfor %}
                 </form>
+            {% else %}
+                <p>No next stages available for this case.</p>
             {% endif %}
 
             {% if 'archive_cases' in case_perms %}
