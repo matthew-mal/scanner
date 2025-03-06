@@ -3,17 +3,12 @@ import logging
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.timezone import now, timedelta
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from .forms import UserLoginForm
-from .models import Case, CustomUser, NextStage, Stage
-from .serializers import BarcodeScanSerializer
+from .forms import EmployeeBarcodeAssignForm, StageBarcodeAssignForm, UserLoginForm
+from .models import Case, CustomUser, Stage
 
 logger = logging.getLogger(__name__)
 
@@ -280,6 +275,86 @@ def manager_dashboard(request):
 
 
 @login_required
+def assign_employee_barcode(request):
+    if request.user.role != CustomUser.MANAGER:
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect("employee_dashboard")
+
+    form = EmployeeBarcodeAssignForm()
+    if request.method == "POST":
+        form = EmployeeBarcodeAssignForm(request.POST)
+        if form.is_valid():
+            employee_id = int(form.cleaned_data["employee_id"])
+            barcode = form.cleaned_data["barcode"]
+            try:
+                employee = CustomUser.objects.get(id=employee_id)
+                if (
+                    CustomUser.objects.filter(barcode=barcode)
+                    .exclude(id=employee_id)
+                    .exists()
+                ):
+                    messages.error(
+                        request, "Этот штрихкод уже привязан к другому сотруднику"
+                    )
+                else:
+                    employee.barcode = barcode
+                    employee.save()
+                    messages.success(
+                        request,
+                        f"Штрихкод {barcode} привязан к сотруднику {employee.get_full_name()}",
+                    )
+                    return redirect(
+                        "assign_employee_barcode"
+                    )  # Обновляем страницу после успеха
+            except CustomUser.DoesNotExist:
+                messages.error(request, "Сотрудник не найден")
+
+    context = {
+        "form": form,
+        "title": "Привязка штрихкода к сотруднику",
+    }
+    return render(request, "users/assign_employee_barcode.html", context)
+
+
+@login_required
+def assign_stage_barcode(request):
+    if request.user.role != CustomUser.MANAGER:
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect("employee_dashboard")
+
+    form = StageBarcodeAssignForm()
+    if request.method == "POST":
+        form = StageBarcodeAssignForm(request.POST)
+        if form.is_valid():
+            stage_id = int(form.cleaned_data["stage_id"])
+            barcode = form.cleaned_data["barcode"]
+            try:
+                stage = Stage.objects.get(id=stage_id)
+                if Stage.objects.filter(barcode=barcode).exclude(id=stage_id).exists():
+                    messages.error(
+                        request, "Этот штрихкод уже привязан к другой стадии"
+                    )
+                else:
+                    stage.barcode = barcode
+                    stage.save()
+                    messages.success(
+                        request,
+                        f"Штрихкод {barcode} привязан к стадии {stage.display_name}",
+                    )
+                    return redirect(
+                        "assign_stage_barcode"
+                    )  # Обновляем страницу после успеха
+            except Stage.DoesNotExist:
+                messages.error(request, "Стадия не найдена")
+
+    context = {
+        "form": form,
+        "title": "Привязка штрихкода к стадии",
+    }
+    return render(request, "users/assign_stage_barcode.html", context)
+
+
+@login_required
 def employee_dashboard(request):
     if request.user.role != CustomUser.EMPLOYEE:
         # Если менеджер пытается зайти на employee_dashboard, перенаправляем его на manager_dashboard
@@ -293,66 +368,3 @@ def employee_dashboard(request):
         "title": "Employee Dashboard",
     }
     return render(request, "users/employee_dashboard.html", context)
-
-
-class ScanBarcodeView(APIView):
-    def post(self, request):
-        serializer = BarcodeScanSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        employee_barcode = serializer.validated_data["employee_barcode"]
-        case_barcode = serializer.validated_data["case_barcode"]
-        stage_barcode = serializer.validated_data["stage_barcode"]
-
-        try:
-            # Находим сотрудника
-            employee = CustomUser.objects.get(barcode=employee_barcode, is_active=True)
-            # Находим кейс
-            case = Case.objects.get(
-                barcode=case_barcode, archived=False, is_returned=False
-            )
-            # Находим стадию
-            new_stage = Stage.objects.get(barcode=stage_barcode)
-        except ObjectDoesNotExist as e:
-            logger.error(f"Invalid barcode: {e}")
-            return Response(
-                {"error": f"Invalid barcode: {e}"}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Проверяем, возможен ли переход
-        if not NextStage.objects.filter(
-            current=case.current_stage, next=new_stage
-        ).exists():
-            logger.error(f"Invalid transition from {case.current_stage} to {new_stage}")
-            return Response(
-                {
-                    "error": f"Cannot transition from {case.current_stage.name} to {new_stage.name}"
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Проверяем права сотрудника (можно настроить через permissions)
-        # Предположим, что у Employee есть связь с группами или правами через Django Guardian
-        if not request.user.has_perm(
-            "core.manage_cases", case
-        ):  # Если используете аутентификацию
-            return Response(
-                {"error": "Employee has no permission to manage this case"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        try:
-            # Выполняем переход
-            case.transition_stage(new_stage=new_stage, employee=employee)
-            return Response(
-                {
-                    "message": f"Case {case.case_number} transitioned to {new_stage.name} by {employee}"
-                },
-                status=status.HTTP_200_OK,
-            )
-        except Exception as e:
-            logger.error(f"Error during transition: {e}")
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )

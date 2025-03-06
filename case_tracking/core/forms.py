@@ -1,4 +1,4 @@
-from core.models import CustomUser
+from core.models import CustomUser, Stage
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 
@@ -31,3 +31,41 @@ class UserLoginForm(AuthenticationForm):
     class Meta:
         model = CustomUser
         fields = ("username", "password")
+
+
+class EmployeeBarcodeAssignForm(forms.Form):
+    employee_id = forms.ChoiceField(label="Employee", required=True)
+    barcode = forms.CharField(
+        max_length=50,
+        label="Barcode",
+        required=True,
+        widget=forms.TextInput(
+            attrs={"placeholder": "Scan Barcode", "id": "id_employee_barcode"}
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["employee_id"].choices = [
+            (employee.id, employee.get_full_name())
+            for employee in CustomUser.objects.all().order_by("last_name", "first_name")
+        ]
+
+
+class StageBarcodeAssignForm(forms.Form):
+    stage_id = forms.ChoiceField(label="Stage", required=True)
+    barcode = forms.CharField(
+        max_length=50,
+        label="Barcode",
+        required=True,
+        widget=forms.TextInput(
+            attrs={"placeholder": "Scan Barcode", "id": "id_stage_barcode"}
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["stage_id"].choices = [
+            (stage.id, stage.display_name)
+            for stage in Stage.objects.all().order_by("name")
+        ]

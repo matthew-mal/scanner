@@ -109,7 +109,7 @@ class CustomUserAdmin(UserAdmin):
     list_editable = ("is_staff", "role")
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Personal info", {"fields": ("first_name", "last_name", "role")}),
+        ("Personal info", {"fields": ("first_name", "last_name", "role", "barcode")}),
         (
             "Permissions",
             {
