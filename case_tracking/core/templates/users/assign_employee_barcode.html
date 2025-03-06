@@ -18,20 +18,20 @@
     <div class="card shadow-sm">
         <div class="card-body">
             <a href="{% url 'manager_dashboard' %}" class="btn btn-outline-secondary btn-sm mb-3" style="border-radius: 20px; padding: 6px 20px;">
-                <i class="fas fa-arrow-left mr-1"></i> Назад
+                <i class="fas fa-arrow-left mr-1"></i> Back
             </a>
             <form method="post" id="employee_form" class="form-inline">
                 {% csrf_token %}
                 <div class="form-group">
-                    <label for="id_employee_id">Сотрудник:</label>
+                    <label for="id_employee_id">Employee:</label>
                     {{ form.employee_id }}
                 </div>
                 <div class="form-group" style="margin-left: 20px;">
-                    <label for="id_employee_barcode">Штрихкод:</label>
+                    <label for="id_employee_barcode">Barcode:</label>
                     {{ form.barcode }}
                 </div>
                 <button type="submit" class="btn btn-success" style="margin-left: 20px; border-radius: 20px; padding: 6px 20px;">
-                    <i class="fas fa-link mr-1"></i> Привязать
+                    <i class="fas fa-link mr-1"></i> Assign
                 </button>
             </form>
         </div>

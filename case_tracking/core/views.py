@@ -175,6 +175,7 @@ def case_list(request):
                 else "N/A",  # Добавляем пользователя
             }
         )
+    case_data.sort(key=lambda x: x["priority"] != "urgent")
 
     stages = Stage.objects.all()
     employees = CustomUser.objects.filter(is_active=True)
