@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">Scan Barcodes</h2>
+
+    <!-- Форма для ввода штрихкодов -->
+    <div class="card">
+        <div class="card-body">
+            <form id="barcodeForm">
+                <div class="form-group">
+                    <label for="employeeBarcode">Employee Barcode</label>
+                    <input type="text" class="form-control" id="employeeBarcode" name="employee_barcode" placeholder="Scan employee barcode" required>
+                </div>
+                <div class="form-group">
+                    <label for="caseBarcode">Case Barcode</label>
+                    <input type="text" class="form-control" id="caseBarcode" name="case_barcode" placeholder="Scan case barcode" required>
+                </div>
+                <div class="form-group">
+                    <label for="stageBarcode">Stage Barcode</label>
+                    <input type="text" class="form-control" id="stageBarcode" name="stage_barcode" placeholder="Scan stage barcode" required>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submitButton" style="display: none;">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Блок для отображения результата -->
+    <div id="result" class="mt-3"></div>
+</div>
+
+<!-- JavaScript для обработки сканирования -->
+<script>
+const employeeInput = document.getElementById('employeeBarcode');
+const caseInput = document.getElementById('caseBarcode');
+const stageInput = document.getElementById('stageBarcode');
+const form = document.getElementById('barcodeForm');
+const resultDiv = document.getElementById('result');
+
+// Функция для отправки данных
+function submitBarcodes() {
+    const data = {
+        employee_barcode: employeeInput.value,
+        case_barcode: caseInput.value,
+        stage_barcode: stageInput.value
+    };
+
+    fetch('{% url "scan_barcodes" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        resultDiv.innerHTML = `
+            <div class="alert alert-success" role="alert">
+                ${data.message}<br>
+                Employee: ${data.case.employee}<br>
+                Case: ${data.case.data.case_number} (Stage: ${data.case.data.current_stage})
+            </div>`;
+        setTimeout(() => { resultDiv.innerHTML = ''; }, 5000); // Очистка результата через 5 секунд
+        resetForm();
+    })
+    .catch(error => {
+        fetch('{% url "scan_barcodes" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(errorData => {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    Error: ${errorData.error || 'Unknown error'}<br>
+                    Detail: ${errorData.detail || 'No details available'}
+                </div>`;
+            setTimeout(() => { resultDiv.innerHTML = ''; }, 5000); // Очистка результата через 5 секунд
+        });
+        resetForm();
+    });
+}
+
+// Функция сброса формы
+function resetForm() {
+    employeeInput.value = '';
+    caseInput.value = '';
+    stageInput.value = '';
+    employeeInput.classList.remove('is-valid');
+    caseInput.classList.remove('is-valid');
+    stageInput.classList.remove('is-valid');
+    employeeInput.focus(); // Возвращаем фокус на первое поле
+}
+
+// Переключение фокуса и визуальная обратная связь
+employeeInput.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter' && employeeInput.value.trim() !== '') {
+        event.preventDefault();
+        employeeInput.classList.add('is-valid'); // Подсветка зеленым
+        caseInput.focus();
+    }
+});
+
+caseInput.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter' && caseInput.value.trim() !== '') {
+        event.preventDefault();
+        caseInput.classList.add('is-valid'); // Подсветка зеленым
+        stageInput.focus();
+    }
+});
+
+stageInput.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter' && stageInput.value.trim() !== '') {
+        event.preventDefault();
+        stageInput.classList.add('is-valid'); // Подсветка зеленым
+        submitBarcodes(); // Отправляем данные после сканирования третьего штрихкода
+    }
+});
+
+// Устанавливаем фокус на первое поле при загрузке страницы
+window.onload = function() {
+    employeeInput.focus();
+};
+</script>
+{% endblock %}

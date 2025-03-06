@@ -20,7 +20,7 @@
             <h4>Welcome, {{ user.first_name }} {{ user.last_name }}!</h4>
             <p>You are logged in as an <strong>Employee</strong>.</p>
             <!-- Здесь можно добавить функционал для сотрудника -->
-            <p>This is where employee-specific content will go, like task lists or case assignments.</p>
+            <a href="{% url 'scan_barcodes_page' %}" class="btn btn-primary">Scan Barcodes</a>
         </div>
     </div>
 </div>

@@ -14,16 +14,15 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from core import views
+from core import views, viewsets
 from core.admin import custom_admin_site
-from core.viewsets import CaseViewSet
 from django.contrib import admin
 from django.contrib.auth.views import LogoutView
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from django.urls import path
+from django.views.generic import TemplateView
 
-router = DefaultRouter()
-router.register(r"cases", CaseViewSet, basename="case")
+# router = DefaultRouter()
+# router.register(r"cases", CaseViewSet, basename="case")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -48,5 +47,14 @@ urlpatterns = [
     path("process_return/", views.process_return, name="process_return"),
     path("archived_cases/", views.archived_case, name="archived_cases"),
     path("returned_cases/", views.returned_case, name="returned_cases"),
-    path("api/", include(router.urls)),
+    path(
+        "api/cases/scan_barcodes/",
+        viewsets.CaseViewSet.as_view({"post": "scan_barcodes"}),
+        name="scan_barcodes",
+    ),
+    path(
+        "scan-barcodes/",
+        TemplateView.as_view(template_name="cases/scan_barcodes.html"),
+        name="scan_barcodes_page",
+    ),
 ]
