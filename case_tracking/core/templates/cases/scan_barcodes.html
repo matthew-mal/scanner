@@ -37,6 +37,43 @@ const stageInput = document.getElementById('stageBarcode');
 const form = document.getElementById('barcodeForm');
 const resultDiv = document.getElementById('result');
 
+// Функция для форматирования ошибок
+function formatErrorDetails(errorData) {
+    let errorHtml = `<div class="alert alert-danger" role="alert"><strong>Error: ${errorData.error || 'Unknown error'}</strong><ul>`;
+    let details = errorData.detail;
+
+    // Если detail — строка, пытаемся её распарсить как JSON
+    if (typeof details === 'string') {
+        try {
+            details = JSON.parse(details);
+        } catch (e) {
+            // Если это не JSON, просто выводим строку
+            errorHtml += `<li>${details}</li>`;
+            errorHtml += `</ul></div>`;
+            return errorHtml;
+        }
+    }
+
+    // Если detail — объект, обрабатываем его
+    if (details && typeof details === 'object') {
+        for (const [field, errorObj] of Object.entries(details)) {
+            let errorMessage = '';
+            if (typeof errorObj === 'object' && errorObj[field]) {
+                // Извлекаем сообщение из ErrorDetail
+                errorMessage = errorObj[field].string || 'Unknown error';
+            } else if (typeof errorObj === 'string') {
+                errorMessage = errorObj;
+            }
+            errorHtml += `<li><strong>${field.replace('_', ' ')}:</strong> ${errorMessage}</li>`;
+        }
+    } else {
+        errorHtml += `<li>${details || 'No details available'}</li>`;
+    }
+
+    errorHtml += `</ul></div>`;
+    return errorHtml;
+}
+
 // Функция для отправки данных
 function submitBarcodes() {
     const data = {
@@ -55,7 +92,7 @@ function submitBarcodes() {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            return response.json().then(errorData => { throw errorData; });
         }
         return response.json();
     })
@@ -66,27 +103,12 @@ function submitBarcodes() {
                 Employee: ${data.case.employee}<br>
                 Case: ${data.case.data.case_number} (Stage: ${data.case.data.current_stage})
             </div>`;
-        setTimeout(() => { resultDiv.innerHTML = ''; }, 5000); // Очистка результата через 5 секунд
+        setTimeout(() => { resultDiv.innerHTML = ''; }, 5000); // Очистка через 5 секунд
         resetForm();
     })
-    .catch(error => {
-        fetch('{% url "scan_barcodes" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(errorData => {
-            resultDiv.innerHTML = `
-                <div class="alert alert-danger" role="alert">
-                    Error: ${errorData.error || 'Unknown error'}<br>
-                    Detail: ${errorData.detail || 'No details available'}
-                </div>`;
-            setTimeout(() => { resultDiv.innerHTML = ''; }, 5000); // Очистка результата через 5 секунд
-        });
+    .catch(errorData => {
+        resultDiv.innerHTML = formatErrorDetails(errorData); // Форматируем ошибки
+        setTimeout(() => { resultDiv.innerHTML = ''; }, 5000); // Очистка через 5 секунд
         resetForm();
     });
 }
