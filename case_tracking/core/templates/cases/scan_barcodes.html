@@ -37,7 +37,7 @@
                     <label for="descriptionInput">Description</label>
                     <textarea class="form-control" id="descriptionInput" name="description" placeholder="Additional details (optional)"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary" id="submitButton" style="display: none;">Submit</button>
+                <button type="submit" class="btn btn-primary mt-3" id="submitButton" style="display: none;">Submit</button>
             </form>
         </div>
     </div>
@@ -55,6 +55,7 @@ const resultDiv = document.getElementById('result');
 const reasonSelect = document.getElementById('reasonSelect');
 const customReasonInput = document.getElementById('customReasonInput');
 const descriptionInput = document.getElementById('descriptionInput');
+const submitButton = document.getElementById('submitButton');
 
 // Функция для форматирования ошибок в человеко-читаемый вид
 function formatErrorDetails(errorData) {
@@ -90,7 +91,9 @@ function formatErrorDetails(errorData) {
 }
 
 // Функция для отправки данных
-function submitBarcodes() {
+function submitBarcodes(event) {
+    if (event) event.preventDefault(); // Предотвращаем стандартную отправку формы
+
     const data = {
         employee_barcode: employeeInput.value,
         case_barcode: caseInput.value,
@@ -139,6 +142,7 @@ function submitBarcodes() {
                 </div>`;
             document.getElementById('reasonGroup').style.display = 'block';
             document.getElementById('descriptionGroup').style.display = 'block';
+            submitButton.style.display = 'block'; // Показываем кнопку
             reasonSelect.focus();
         } else {
             resultDiv.innerHTML = formatErrorDetails(errorData);
@@ -159,6 +163,7 @@ function resetForm() {
     document.getElementById('reasonGroup').style.display = 'none';
     document.getElementById('customReasonGroup').style.display = 'none';
     document.getElementById('descriptionGroup').style.display = 'none';
+    submitButton.style.display = 'none'; // Скрываем кнопку
     employeeInput.classList.remove('is-valid');
     caseInput.classList.remove('is-valid');
     stageInput.classList.remove('is-valid');
@@ -199,6 +204,9 @@ stageInput.addEventListener('keypress', function(event) {
         submitBarcodes();
     }
 });
+
+// Обработчик отправки формы через кнопку
+form.addEventListener('submit', submitBarcodes);
 
 window.onload = function() {
     employeeInput.focus();
