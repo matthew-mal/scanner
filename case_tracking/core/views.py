@@ -3,6 +3,7 @@ import logging
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.timezone import now, timedelta
@@ -137,6 +138,7 @@ def case_list(request):
     priority = request.GET.get("priority", None)
     stage_id = request.GET.get("stage", None)
     user_id = request.GET.get("user", None)
+    search_query = request.GET.get("search", None)
 
     cases = Case.objects.filter(archived=False, is_returned=False).select_related(
         "current_stage", "last_updated_by"
@@ -148,6 +150,10 @@ def case_list(request):
         cases = cases.filter(current_stage__id=stage_id)
     if user_id:
         cases = cases.filter(last_updated_by__id=user_id)
+    if search_query:
+        cases = cases.filter(
+            Q(case_number__icontains=search_query) | Q(barcode__icontains=search_query)
+        )
 
     case_data = []
     for case in cases:
@@ -186,6 +192,7 @@ def case_list(request):
         "priority": priority,
         "stage_id": stage_id,
         "user_id": user_id,
+        "search_query": search_query,
     }
 
     return render(request, "cases/case_list.html", context)

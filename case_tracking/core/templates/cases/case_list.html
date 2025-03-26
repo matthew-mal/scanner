@@ -11,6 +11,22 @@
             <i class="fas fa-undo mr-1"></i> Returned cases
         </a>
     </div>
+
+    <!-- Search form -->
+    <div class="mb-3">
+        <form method="get">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control"
+                       placeholder="Search by case number or barcode"
+                       value="{{ search_query|default:'' }}">
+                <button type="submit" class="btn btn-primary">Search</button>
+                {% if search_query %}
+                    <a href="{% url 'case_list' %}" class="btn btn-secondary">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
     <!-- Filters -->
     <div class="filter-section" style="margin-bottom: 20px;">
         <form method="GET" class="form-inline">
@@ -44,6 +60,9 @@
                     {% endfor %}
                 </select>
             </div>
+            {% if search_query %}
+                <input type="hidden" name="search" value="{{ search_query }}">
+            {% endif %}
             <button type="submit" class="btn btn-primary" style="margin-left: 20px;">Filter</button>
         </form>
     </div>
@@ -56,7 +75,7 @@
                 <th>Current stage</th>
                 <th>Priority</th>
                 <th>Stage time</th>
-                <th>Last updated by</th> <!-- Новая колонка -->
+                <th>Last updated by</th>
             </tr>
         </thead>
         <tbody>
@@ -74,7 +93,7 @@
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center">No cases to display</td> <!-- Обновили colspan -->
+                    <td colspan="6" class="text-center">No cases to display</td>
                 </tr>
             {% endfor %}
         </tbody>
