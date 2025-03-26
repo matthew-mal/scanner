@@ -20,6 +20,23 @@
                     <label for="stageBarcode">Stage Barcode</label>
                     <input type="text" class="form-control" id="stageBarcode" name="stage_barcode" placeholder="Scan stage barcode" required>
                 </div>
+                <div id="reasonGroup" class="form-group" style="display: none;">
+                    <label for="reasonSelect">Reason for return</label>
+                    <select class="form-control" id="reasonSelect" name="reason">
+                        <option value="">Select a reason</option>
+                        {% for value, label in reason_choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="customReasonGroup" class="form-group" style="display: none;">
+                    <label for="customReasonInput">Custom Reason (if Other)</label>
+                    <input type="text" class="form-control" id="customReasonInput" name="custom_reason" placeholder="Specify custom reason">
+                </div>
+                <div id="descriptionGroup" class="form-group" style="display: none;">
+                    <label for="descriptionInput">Description</label>
+                    <textarea class="form-control" id="descriptionInput" name="description" placeholder="Additional details (optional)"></textarea>
+                </div>
                 <button type="submit" class="btn btn-primary" id="submitButton" style="display: none;">Submit</button>
             </form>
         </div>
@@ -29,47 +46,29 @@
     <div id="result" class="mt-3"></div>
 </div>
 
-<!-- JavaScript для обработки сканирования -->
+<!-- Передаем REASON_CHOICES в шаблон -->
+{% with reason_choices=ReturnReason.REASON_CHOICES %}
 <script>
 const employeeInput = document.getElementById('employeeBarcode');
 const caseInput = document.getElementById('caseBarcode');
 const stageInput = document.getElementById('stageBarcode');
 const form = document.getElementById('barcodeForm');
 const resultDiv = document.getElementById('result');
+const reasonSelect = document.getElementById('reasonSelect');
+const customReasonInput = document.getElementById('customReasonInput');
+const descriptionInput = document.getElementById('descriptionInput');
 
 // Функция для форматирования ошибок
 function formatErrorDetails(errorData) {
     let errorHtml = `<div class="alert alert-danger" role="alert"><strong>Error: ${errorData.error || 'Unknown error'}</strong><ul>`;
     let details = errorData.detail;
-
-    // Если detail — строка, пытаемся её распарсить как JSON
     if (typeof details === 'string') {
-        try {
-            details = JSON.parse(details);
-        } catch (e) {
-            // Если это не JSON, просто выводим строку
-            errorHtml += `<li>${details}</li>`;
-            errorHtml += `</ul></div>`;
-            return errorHtml;
+        errorHtml += `<li>${details}</li>`;
+    } else if (details && typeof details === 'object') {
+        for (const [field, error] of Object.entries(details)) {
+            errorHtml += `<li><strong>${field}:</strong> ${error}</li>`;
         }
     }
-
-    // Если detail — объект, обрабатываем его
-    if (details && typeof details === 'object') {
-        for (const [field, errorObj] of Object.entries(details)) {
-            let errorMessage = '';
-            if (typeof errorObj === 'object' && errorObj[field]) {
-                // Извлекаем сообщение из ErrorDetail
-                errorMessage = errorObj[field].string || 'Unknown error';
-            } else if (typeof errorObj === 'string') {
-                errorMessage = errorObj;
-            }
-            errorHtml += `<li><strong>${field.replace('_', ' ')}:</strong> ${errorMessage}</li>`;
-        }
-    } else {
-        errorHtml += `<li>${details || 'No details available'}</li>`;
-    }
-
     errorHtml += `</ul></div>`;
     return errorHtml;
 }
@@ -81,6 +80,15 @@ function submitBarcodes() {
         case_barcode: caseInput.value,
         stage_barcode: stageInput.value
     };
+    if (reasonSelect.value) {
+        data.reason = reasonSelect.value;
+    }
+    if (customReasonInput.value.trim() !== '') {
+        data.custom_reason = customReasonInput.value;
+    }
+    if (descriptionInput.value.trim() !== '') {
+        data.description = descriptionInput.value;
+    }
 
     fetch('{% url "scan_barcodes" %}', {
         method: 'POST',
@@ -103,13 +111,23 @@ function submitBarcodes() {
                 Employee: ${data.case.employee}<br>
                 Case: ${data.case.data.case_number} (Stage: ${data.case.data.current_stage})
             </div>`;
-        setTimeout(() => { resultDiv.innerHTML = ''; }, 5000); // Очистка через 5 секунд
+        setTimeout(() => { resultDiv.innerHTML = ''; }, 5000);
         resetForm();
     })
     .catch(errorData => {
-        resultDiv.innerHTML = formatErrorDetails(errorData); // Форматируем ошибки
-        setTimeout(() => { resultDiv.innerHTML = ''; }, 5000); // Очистка через 5 секунд
-        resetForm();
+        if (errorData.requires_reason) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-warning" role="alert">
+                    ${errorData.detail}
+                </div>`;
+            document.getElementById('reasonGroup').style.display = 'block';
+            document.getElementById('descriptionGroup').style.display = 'block';
+            reasonSelect.focus();
+        } else {
+            resultDiv.innerHTML = formatErrorDetails(errorData);
+            setTimeout(() => { resultDiv.innerHTML = ''; }, 5000);
+            resetForm();
+        }
     });
 }
 
@@ -118,17 +136,33 @@ function resetForm() {
     employeeInput.value = '';
     caseInput.value = '';
     stageInput.value = '';
+    reasonSelect.value = '';
+    customReasonInput.value = '';
+    descriptionInput.value = '';
+    document.getElementById('reasonGroup').style.display = 'none';
+    document.getElementById('customReasonGroup').style.display = 'none';
+    document.getElementById('descriptionGroup').style.display = 'none';
     employeeInput.classList.remove('is-valid');
     caseInput.classList.remove('is-valid');
     stageInput.classList.remove('is-valid');
-    employeeInput.focus(); // Возвращаем фокус на первое поле
+    employeeInput.focus();
 }
+
+// Показываем поле custom_reason, если выбрано "other"
+reasonSelect.addEventListener('change', function() {
+    if (reasonSelect.value === 'other') {
+        document.getElementById('customReasonGroup').style.display = 'block';
+        customReasonInput.focus();
+    } else {
+        document.getElementById('customReasonGroup').style.display = 'none';
+    }
+});
 
 // Переключение фокуса и визуальная обратная связь
 employeeInput.addEventListener('keypress', function(event) {
     if (event.key === 'Enter' && employeeInput.value.trim() !== '') {
         event.preventDefault();
-        employeeInput.classList.add('is-valid'); // Подсветка зеленым
+        employeeInput.classList.add('is-valid');
         caseInput.focus();
     }
 });
@@ -136,7 +170,7 @@ employeeInput.addEventListener('keypress', function(event) {
 caseInput.addEventListener('keypress', function(event) {
     if (event.key === 'Enter' && caseInput.value.trim() !== '') {
         event.preventDefault();
-        caseInput.classList.add('is-valid'); // Подсветка зеленым
+        caseInput.classList.add('is-valid');
         stageInput.focus();
     }
 });
@@ -144,8 +178,8 @@ caseInput.addEventListener('keypress', function(event) {
 stageInput.addEventListener('keypress', function(event) {
     if (event.key === 'Enter' && stageInput.value.trim() !== '') {
         event.preventDefault();
-        stageInput.classList.add('is-valid'); // Подсветка зеленым
-        submitBarcodes(); // Отправляем данные после сканирования третьего штрихкода
+        stageInput.classList.add('is-valid');
+        submitBarcodes();
     }
 });
 
@@ -154,4 +188,5 @@ window.onload = function() {
     employeeInput.focus();
 };
 </script>
+{% endwith %}
 {% endblock %}

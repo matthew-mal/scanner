@@ -232,10 +232,8 @@ class Case(models.Model):
                 pass  # Если что-то пошло не так, пропускаем
         else:  # Новый кейс
             super().save(*args, **kwargs)  # Сначала сохраняем, чтобы был pk
-            self.log_transition(
-                new_stage=self.current_stage
-            )  # Логируем начальную стадию
-            return  # Выходим, чтобы не дублировать save
+            self.log_transition(new_stage=self.current_stage)
+            return
 
         super().save(*args, **kwargs)
 
@@ -248,6 +246,7 @@ class Case(models.Model):
         )
         self.current_stage = new_stage
         self.last_updated_by = user
+        self.updated_at = now()
         self.save()
 
     def log_transition(self, new_stage, is_return=False, reason=None, user=None):
@@ -261,7 +260,7 @@ class Case(models.Model):
         CaseStageLog.objects.create(
             case=self,
             stage=new_stage,
-            user=user,  # Используем user вместо employee
+            user=user,
             is_returned=is_return,
         )
 

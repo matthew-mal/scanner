@@ -4,7 +4,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Case
+from .models import Case, ReturnReason, Stage
 from .serializers import BarcodeScanSerializer, CaseSerializer
 
 
@@ -18,26 +18,89 @@ class CaseViewSet(viewsets.ModelViewSet):
         Обработка сканирования трех штрихкодов: сотрудник-кейс-стадия
         """
         try:
-            # Валидация через сериализатор
             serializer = BarcodeScanSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
-            # Получаем валидированные данные
             employee = serializer.validated_data["employee_barcode"]
             case_barcode = serializer.validated_data["case_barcode"]
             stage = serializer.validated_data["stage_barcode"]
 
-            # Используем атомарную транзакцию
             with transaction.atomic():
-                try:
-                    if isinstance(case_barcode, Case):
-                        # Если case_barcode уже объект Case, используем его
-                        case = case_barcode
-                        case.transition_stage(new_stage=stage, user=employee)
-                        message = f"Case #{case.case_number} moving to stage {stage.display_name}"
-                        status_code = status.HTTP_200_OK
+                if isinstance(case_barcode, Case):
+                    # Если case_barcode уже объект Case, используем его
+                    case = case_barcode
+                    current_stage = case.current_stage
 
-                except Case.DoesNotExist:
+                    first_stage = Stage.objects.get(
+                        name="MR"
+                    )  # TODO поправить по тому какая стадия считается первой
+
+                    if stage == current_stage:
+                        return Response(
+                            {
+                                "error": "Invalid transition",
+                                "detail": "Case is already on this stage",
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    # Проверяем, является ли это возвратом
+                    if current_stage is not None:  # Не новый кейс
+                        if stage != first_stage:
+                            # Возврат на любую стадию кроме первой - ошибка
+                            return Response(
+                                {
+                                    "error": "Invalid transition",
+                                    "detail": "Cannot return case to a non-initial stage",
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+                        elif stage == first_stage:
+                            # Возврат на первую стадию - требуем причину
+                            reason_key = request.data.get("reason", None)
+                            custom_reason = request.data.get("custom_reason", None)
+                            description = request.data.get("description", None)
+
+                            if not reason_key and not custom_reason:
+                                return Response(
+                                    {
+                                        "error": "Reason required",
+                                        "detail": "Please provide a reason why the case returned to the first stage",
+                                        "requires_reason": True,
+                                        "reason_choices": ReturnReason.REASON_CHOICES,
+                                    },
+                                    status=status.HTTP_400_BAD_REQUEST,
+                                )
+
+                            # Обрабатываем причину возврата
+                            if reason_key:
+                                try:
+                                    reason = ReturnReason.objects.get(reason=reason_key)
+                                except ReturnReason.DoesNotExist:
+                                    return Response(
+                                        {
+                                            "error": "Invalid reason",
+                                            "detail": f"Reason '{reason_key}' not found",
+                                        },
+                                        status=status.HTTP_400_BAD_REQUEST,
+                                    )
+                            elif custom_reason:
+                                reason = ReturnReason.objects.create(
+                                    reason="other", custom_reason=custom_reason
+                                )
+
+                            # Обрабатываем возврат
+                            case.process_return(reason=reason, description=description)
+                            case.transition_stage(
+                                new_stage=stage,
+                                user=employee,
+                                is_return=True,
+                                reason=reason,
+                            )
+                            message = f"Case #{case.case_number} returned to stage {stage.display_name}"
+                            status_code = status.HTTP_200_OK
+
+                else:
                     case = Case.objects.create(
                         case_number=f"CASE-{case_barcode}",
                         barcode=case_barcode,
@@ -66,61 +129,3 @@ class CaseViewSet(viewsets.ModelViewSet):
                 {"error": "Unexpected Error", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-    # @action(detail=False, methods=["post"])
-    # def assign_employee_barcode(self, request):
-    #     """Привязка существующего штрихкода к сотруднику"""
-    #     serializer = EmployeeBarcodeAssignSerializer(data=request.data)
-    #     serializer.is_valid(raise_exception=True)
-    #
-    #     employee_id = serializer.validated_data["employee_id"]
-    #     barcode = serializer.validated_data["barcode"]
-    #
-    #     try:
-    #         employee = CustomUser.objects.get(id=employee_id)
-    #         employee.barcode = barcode
-    #         employee.save()
-    #
-    #         return Response(
-    #             {
-    #                 "message": f"Barcode {barcode} asigned to employee {employee.get_full_name()}",
-    #                 "employee_id": employee.id,
-    #                 "barcode": barcode,
-    #             },
-    #             status=status.HTTP_200_OK,
-    #         )
-    #
-    #     except CustomUser.DoesNotExist:
-    #         return Response(
-    #             {"error": "No employee with that name found"},
-    #             status=status.HTTP_404_NOT_FOUND,
-    #         )
-    #
-    # @action(detail=False, methods=["post"])
-    # def assign_stage_barcode(self, request):
-    #     """Привязка существующего штрихкода к стадии"""
-    #     serializer = StageBarcodeAssignSerializer(data=request.data)
-    #     serializer.is_valid(raise_exception=True)
-    #
-    #     stage_id = serializer.validated_data["stage_id"]
-    #     barcode = serializer.validated_data["barcode"]
-    #
-    #     try:
-    #         stage = Stage.objects.get(id=stage_id)
-    #         stage.barcode = barcode
-    #         stage.save()
-    #
-    #         return Response(
-    #             {
-    #                 "message": f"Barcode {barcode} asigned to stage {stage.display_name}",
-    #                 "stage_id": stage.id,
-    #                 "barcode": barcode,
-    #             },
-    #             status=status.HTTP_200_OK,
-    #         )
-    #
-    #     except Stage.DoesNotExist:
-    #         return Response(
-    #             {"error": "No stage with that name found"},
-    #             status=status.HTTP_404_NOT_FOUND,
-    #         )
