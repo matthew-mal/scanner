@@ -46,8 +46,6 @@
     <div id="result" class="mt-3"></div>
 </div>
 
-<!-- Передаем REASON_CHOICES в шаблон -->
-{% with reason_choices=ReturnReason.REASON_CHOICES %}
 <script>
 const employeeInput = document.getElementById('employeeBarcode');
 const caseInput = document.getElementById('caseBarcode');
@@ -58,19 +56,37 @@ const reasonSelect = document.getElementById('reasonSelect');
 const customReasonInput = document.getElementById('customReasonInput');
 const descriptionInput = document.getElementById('descriptionInput');
 
-// Функция для форматирования ошибок
+// Функция для форматирования ошибок в человеко-читаемый вид
 function formatErrorDetails(errorData) {
-    let errorHtml = `<div class="alert alert-danger" role="alert"><strong>Error: ${errorData.error || 'Unknown error'}</strong><ul>`;
-    let details = errorData.detail;
-    if (typeof details === 'string') {
-        errorHtml += `<li>${details}</li>`;
-    } else if (details && typeof details === 'object') {
-        for (const [field, error] of Object.entries(details)) {
-            errorHtml += `<li><strong>${field}:</strong> ${error}</li>`;
+    let errorMessage = `<div class="alert alert-danger" role="alert">`;
+
+    errorMessage += `<strong>${errorData.error || 'Something went wrong'}</strong>`;
+
+    if (errorData.detail) {
+        errorMessage += '<ul>';
+        if (typeof errorData.detail === 'string') {
+            errorMessage += `<li>${errorData.detail}</li>`;
+        } else if (typeof errorData.detail === 'object') {
+            for (const [field, errorObj] of Object.entries(errorData.detail)) {
+                let errorText = '';
+                if (typeof errorObj === 'object' && errorObj[field]) {
+                    if (errorObj[field].string) {
+                        errorText = errorObj[field].string;
+                    } else {
+                        errorText = JSON.stringify(errorObj[field]);
+                    }
+                } else if (typeof errorObj === 'string') {
+                    errorText = errorObj;
+                } else {
+                    errorText = 'Unknown error';
+                }
+                errorMessage += `<li>${field.replace('_barcode', '').replace('_', ' ')}: ${errorText}</li>`;
+            }
         }
+        errorMessage += '</ul>';
     }
-    errorHtml += `</ul></div>`;
-    return errorHtml;
+    errorMessage += `</div>`;
+    return errorMessage;
 }
 
 // Функция для отправки данных
@@ -118,6 +134,7 @@ function submitBarcodes() {
         if (errorData.requires_reason) {
             resultDiv.innerHTML = `
                 <div class="alert alert-warning" role="alert">
+                    <strong>Please provide a reason</strong><br>
                     ${errorData.detail}
                 </div>`;
             document.getElementById('reasonGroup').style.display = 'block';
@@ -125,7 +142,7 @@ function submitBarcodes() {
             reasonSelect.focus();
         } else {
             resultDiv.innerHTML = formatErrorDetails(errorData);
-            setTimeout(() => { resultDiv.innerHTML = ''; }, 5000);
+            setTimeout(() => { resultDiv.innerHTML = ''; }, 10000);
             resetForm();
         }
     });
@@ -183,10 +200,8 @@ stageInput.addEventListener('keypress', function(event) {
     }
 });
 
-// Устанавливаем фокус на первое поле при загрузке страницы
 window.onload = function() {
     employeeInput.focus();
 };
 </script>
-{% endwith %}
 {% endblock %}

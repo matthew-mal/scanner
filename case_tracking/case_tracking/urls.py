@@ -19,10 +19,6 @@ from core.admin import custom_admin_site
 from django.contrib import admin
 from django.contrib.auth.views import LogoutView
 from django.urls import path
-from django.views.generic import TemplateView
-
-# router = DefaultRouter()
-# router.register(r"cases", CaseViewSet, basename="case")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -42,9 +38,6 @@ urlpatterns = [
         name="assign_stage_barcode",
     ),
     path("employee/dashboard/", views.employee_dashboard, name="employee_dashboard"),
-    path("register_case/", views.register_case, name="register_case"),
-    path("update_case_stage/", views.update_case_stage, name="update_case_stage"),
-    path("process_return/", views.process_return, name="process_return"),
     path("archived_cases/", views.archived_case, name="archived_cases"),
     path("returned_cases/", views.returned_case, name="returned_cases"),
     path(
@@ -52,9 +45,5 @@ urlpatterns = [
         viewsets.CaseViewSet.as_view({"post": "scan_barcodes"}),
         name="scan_barcodes",
     ),
-    path(
-        "scan-barcodes/",
-        TemplateView.as_view(template_name="cases/scan_barcodes.html"),
-        name="scan_barcodes_page",
-    ),
+    path("scan-barcodes/", views.scan_barcodes_page, name="scan_barcodes_page"),
 ]

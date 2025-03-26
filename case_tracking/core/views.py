@@ -4,12 +4,11 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.timezone import now, timedelta
+from django.shortcuts import redirect, render
+from django.utils.timezone import now
 
 from .forms import EmployeeBarcodeAssignForm, StageBarcodeAssignForm, UserLoginForm
-from .models import Case, CustomUser, Stage
+from .models import Case, CustomUser, ReturnReason, Stage
 
 logger = logging.getLogger(__name__)
 
@@ -33,84 +32,6 @@ def login_view(request):
     else:
         form = UserLoginForm()
     return render(request, "users/login.html", {"form": form})
-
-
-def register_case(request):
-    """
-    Register a new case based on barcode scan.
-    Accepts case number, priority, material, and other necessary details.
-    """
-    if request.method == "POST":
-        case_number = request.POST.get("case_number")
-        priority = request.POST.get(
-            "priority", "standard"
-        )  # Default to 'standard' if not provided
-        # material = request.POST.get("material")
-        # shade = request.POST.get("shade", "")
-        current_stage = (
-            Stage.objects.first()
-        )  # Set the initial stage (could be default stage)
-
-        # Create a new case
-        case = Case.objects.create(
-            case_number=case_number,
-            priority=priority,
-            # material=material,
-            # shade=shade,
-            current_stage=current_stage,
-            created_at=now(),
-        )
-
-        return JsonResponse(
-            {
-                "message": "Case registered successfully",
-                "case_number": case.case_number,
-            },
-            status=201,
-        )
-    else:
-        return JsonResponse({"message": "Invalid request method"}, status=400)
-
-
-def update_case_stage(request, case_number):
-    """
-    Update the case stage upon scanning a new stage.
-    Ensure the stage is scanned within 5 minutes of case scan and check for duplicate stage scans.
-    """
-    if request.method == "POST":
-        case = get_object_or_404(Case, case_number=case_number)
-        new_stage_id = request.POST.get("new_stage_id")
-        new_stage = get_object_or_404(Stage, id=new_stage_id)
-
-        # Check if case has already passed 5 minutes since scanning
-        if case.created_at + timedelta(minutes=5) < now():
-            return JsonResponse(
-                {
-                    "message": f"Error: Stage scan timed out for case {case_number}. Please rescan the case."
-                },
-                status=400,
-            )
-
-        # Check if the stage has already been scanned
-        if case.current_stage == new_stage:
-            return JsonResponse(
-                {
-                    "message": f"Error: {new_stage.name} has already been scanned for case {case_number}."
-                },
-                status=400,
-            )
-
-        # Log the stage transition
-        case.log_transition(new_stage)
-        case.current_stage = new_stage
-        case.save()
-
-        return JsonResponse(
-            {"message": f"Case {case_number} moved to {new_stage.name}"}, status=200
-        )
-
-    else:
-        return JsonResponse({"message": "Invalid request method"}, status=400)
 
 
 def format_timedelta(td):
@@ -241,30 +162,6 @@ def returned_case(request):
     return render(request, "cases/returned_case.html", context)
 
 
-def process_return(request, case_number):
-    """
-    Process a return of a case by scanning it again and specifying the return reason.
-    """
-    if request.method == "POST":
-        case = get_object_or_404(Case, case_number=case_number)
-
-        if case.is_returned:
-            return JsonResponse(
-                {"message": "This case has already been returned."}, status=400
-            )
-
-        reason = request.POST.get("reason")
-        custom_reason = request.POST.get("custom_reason", None)
-
-        case.process_return(reason=reason, custom_reason=custom_reason)
-
-        return JsonResponse(
-            {"message": f"Case {case_number} processed for return"}, status=200
-        )
-    else:
-        return JsonResponse({"message": "Invalid request method"}, status=400)
-
-
 @login_required
 def manager_dashboard(request):
     if request.user.role != CustomUser.MANAGER:
@@ -376,3 +273,11 @@ def employee_dashboard(request):
         "title": "Employee Dashboard",
     }
     return render(request, "users/employee_dashboard.html", context)
+
+
+def scan_barcodes_page(request):
+    return render(
+        request,
+        "cases/scan_barcodes.html",
+        {"reason_choices": ReturnReason.REASON_CHOICES},
+    )
