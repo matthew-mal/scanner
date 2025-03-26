@@ -18,7 +18,7 @@ class BarcodeScanSerializer(serializers.Serializer):
         try:
             employee = CustomUser.objects.get(barcode=value)
             if not employee.is_active:
-                raise serializers.ValidationError("Сотрудник неактивен")
+                raise serializers.ValidationError("Employee is not active")
             return employee
         except CustomUser.DoesNotExist:
             raise serializers.ValidationError(
@@ -26,12 +26,11 @@ class BarcodeScanSerializer(serializers.Serializer):
             )
 
     def validate_case_barcode(self, value):
-        # Проверяем, существует ли кейс с таким штрихкодом
         try:
             case = Case.objects.get(barcode=value)
-            return case  # Возвращаем существующий кейс
+            return case
         except Case.DoesNotExist:
-            return value  # Возвращаем значение, если кейс не существует (будет создан позже)
+            return value
 
     def validate_stage_barcode(self, value):
         try:
@@ -43,9 +42,7 @@ class BarcodeScanSerializer(serializers.Serializer):
             )
 
     def validate(self, data):
-        # Здесь можно добавить дополнительную валидацию, если нужно проверить взаимосвязь полей
-        print(f"Validated data: {data}")
-        return data  # Обязательно возвращаем данные
+        return data
 
 
 class CaseSerializer(serializers.ModelSerializer):
@@ -68,6 +65,7 @@ class EmployeeBarcodeAssignSerializer(serializers.Serializer):
 
     def validate(self, data):
         barcode = data["barcode"]
+        # Проверяем, не привязан ли штрихкод к другому сотруднику
         if (
             CustomUser.objects.filter(barcode=barcode)
             .exclude(id=data["employee_id"])

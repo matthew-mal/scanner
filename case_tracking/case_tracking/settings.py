@@ -9,10 +9,12 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
+import datetime
 import os
 from pathlib import Path
 
 import dj_database_url
+from celery.schedules import crontab
 from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -44,6 +46,8 @@ INSTALLED_APPS = [
     "guardian",
     "core.apps.CoreConfig",
     "rest_framework",
+    "constance",
+    "constance.backends.database",
 ]
 
 MIDDLEWARE = [
@@ -154,6 +158,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "core.tasks.check_and_update_case_priorities",
         "schedule": 1800.0,  # 30 minutes
     },
+    "delete-outdated-logs-every-day": {
+        "task": "cases.tasks.delete_outdated_case_stage_logs",
+        "schedule": crontab(hour=0, minute=0),  # Every midnight
+    },
+    "archive-completed-cases-every-day": {
+        "task": "cases.tasks.archive_completed_cases",
+        "schedule": 1800.0,  # 30 min
+    },
 }
 
 CELERY_RESULT_BACKEND = config("CELERY_BROKER_URL")
@@ -184,4 +196,27 @@ LOGGING = {
             "propagate": False,
         },
     },
+}
+
+
+# Constance
+CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"
+
+CONSTANCE_CONFIG = {
+    "CASE_STAGE_LOG_EXPIRES_AFTER": (
+        datetime.timedelta(days=30),
+        "After what time do the logs of the case stages become irrelevant and deleted",
+    ),
+    "AUTO_ARCHIVE_CASE_TIMEOUT": (
+        datetime.timedelta(minutes=5),
+        "How long does it take to automatically archive completed cases",
+    ),
+    "FIRST_STAGE_NAME": (
+        "New",
+        "The name of the first stage (must match the stage name in Stage)",
+    ),
+    "LAST_STAGE_NAME": (
+        "Done",
+        "The name of the last stage (must match the stage name in Stage)",
+    ),
 }

@@ -1,3 +1,4 @@
+from constance import config
 from django.db import transaction
 from django.utils.timezone import now
 from rest_framework import status, viewsets
@@ -31,9 +32,7 @@ class CaseViewSet(viewsets.ModelViewSet):
                     case = case_barcode
                     current_stage = case.current_stage
 
-                    first_stage = Stage.objects.get(
-                        name="MR"
-                    )  # TODO поправить по тому какая стадия считается первой
+                    first_stage = Stage.objects.get(name=config.FIRST_STAGE_NAME)
 
                     if stage == current_stage:
                         return Response(

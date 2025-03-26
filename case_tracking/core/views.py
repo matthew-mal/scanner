@@ -172,9 +172,8 @@ def manager_dashboard(request):
     context = {
         "user": request.user,
         "title": "Manager Dashboard",
-        "can_access_admin": request.user.is_staff,  # Для стандартного админа
-        "can_access_custom_admin": request.user.role
-        == CustomUser.MANAGER,  # Для кастомного
+        "can_access_admin": request.user.is_staff,
+        "can_access_custom_admin": request.user.role == CustomUser.MANAGER,
     }
     return render(request, "users/manager_dashboard.html", context)
 

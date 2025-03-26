@@ -95,8 +95,8 @@ class Stage(models.Model):
 
     class Meta:
         ordering = ["name"]
-        verbose_name = "State"
-        verbose_name_plural = "States"
+        verbose_name = "Stage"
+        verbose_name_plural = "Stages"
 
     def __str__(self):
         return f"{self.pk} {self.name} {self.display_name}"
@@ -117,8 +117,8 @@ class NextStage(models.Model):
 
     class Meta:
         ordering = ["display_name"]
-        verbose_name = "Next State"
-        verbose_name_plural = "Next States"
+        verbose_name = "Next Stage"
+        verbose_name_plural = "Next Stages"
 
     def __str__(self):
         return f"{self.signal} {self.current} {self.next}"

@@ -82,10 +82,7 @@ class CaseAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
     def save_model(self, request, obj, form, change):
-        """
-        Переопределяем сохранение объекта в админке, чтобы устанавливать last_updated_by.
-        """
-        user = request.user  # Текущий пользователь — это CustomUser
+        user = request.user
         if change and "current_stage" in form.changed_data:
             old_stage = Case.objects.get(pk=obj.pk).current_stage
             if old_stage != obj.current_stage:
