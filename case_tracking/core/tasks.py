@@ -2,6 +2,7 @@ import logging
 
 from celery import shared_task
 from constance import config
+from django.core.management import call_command
 from django.utils.timezone import now, timedelta
 
 from .models import Case, CaseStageLog, Stage
@@ -57,7 +58,6 @@ def archive_completed_cases():
 
     last_stage = Stage.objects.get(name=config.LAST_STAGE_NAME)
 
-    # Фильтруем кейсы: на последней стадии, не заархивированные, без следующей стадии, старше порога
     completed_cases = Case.objects.filter(
         current_stage=last_stage,
         archived=False,
@@ -77,3 +77,13 @@ def archive_completed_cases():
         f"Archived {archived_count} completed cases older than {config.AUTO_ARCHIVE_CASE_TIMEOUT}."
     )
     return f"Archived {archived_count} cases"
+
+
+@shared_task
+def backup_database():
+    try:
+        call_command("dbbackup")
+        logger.info("Database backup completed")
+    except Exception as e:
+        logger.warning(f"Something went wrong {e}")
+    return "Database backup completed"

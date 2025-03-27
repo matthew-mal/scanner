@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "constance",
     "constance.backends.database",
+    "dbbackup",
 ]
 
 MIDDLEWARE = [
@@ -166,6 +167,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "cases.tasks.archive_completed_cases",
         "schedule": 1800.0,  # 30 min
     },
+    "backup-database-daily": {
+        "task": "cases.tasks.backup_database",
+        "schedule": crontab(hour=2, minute=0),
+    },
 }
 
 CELERY_RESULT_BACKEND = config("CELERY_BROKER_URL")
@@ -220,3 +225,18 @@ CONSTANCE_CONFIG = {
         "The name of the last stage (must match the stage name in Stage)",
     ),
 }
+
+
+# dbbackup
+DBBACKUP_STORAGE = "storages.backends.dropbox.DropboxStorage"
+DBBACKUP_STORAGE_OPTIONS = {
+    "app_key": config("DROPBOX_APP_KEY"),
+    "app_secret": config("DROPBOX_APP_SECRET"),
+    "oauth2_access_token": config("DROPBOX_ACCESS_TOKEN"),
+    "root_path": "/backups/",
+}
+DROPBOX_REDIRECT_URI = config(
+    "DROPBOX_REDIRECT_URI", "http://localhost:8000/dropbox/callback/"
+)
+
+DBBACKUP_GZIP = True
