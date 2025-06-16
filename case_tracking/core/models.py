@@ -92,6 +92,7 @@ class Stage(models.Model):
     barcode = models.CharField(max_length=50, unique=True, db_index=True, null=True)
     display_name = models.CharField(max_length=64)
     note = models.TextField(blank=True, null=True)
+    stage_group = models.CharField(max_length=32, unique=True, db_index=True, null=True)
 
     class Meta:
         ordering = ["name"]
@@ -99,7 +100,7 @@ class Stage(models.Model):
         verbose_name_plural = "Stages"
 
     def __str__(self):
-        return f"{self.pk} {self.name} {self.display_name}"
+        return f"{self.pk} {self.display_name}"
 
 
 class NextStage(models.Model):

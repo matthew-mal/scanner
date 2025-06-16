@@ -56,7 +56,7 @@ def archive_completed_cases():
     """
     archive_threshold = now() - config.AUTO_ARCHIVE_CASE_TIMEOUT
 
-    last_stage = Stage.objects.get(name=config.LAST_STAGE_NAME)
+    last_stage = Stage.objects.get(stage_group=config.LAST_STAGE_GROUP)
 
     completed_cases = Case.objects.filter(
         current_stage=last_stage,
