@@ -100,7 +100,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
-
+LANGUAGES = [
+    ('en', 'English'),
+]
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
@@ -135,12 +137,14 @@ TEMPLATES = [
 STATIC_URL = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "core/static"),
+STATICFILES_DIRS = []
+
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 
-
-# DB and celery
+#DB and celery
 
 DATABASES = {
     "default": dj_database_url.config(default=config("DATABASE_URL"), conn_max_age=600)
@@ -240,3 +244,13 @@ DROPBOX_REDIRECT_URI = config(
 )
 
 DBBACKUP_GZIP = True
+
+
+# CSRF
+CSRF_TRUSTED_ORIGINS = [
+    'https://bdlmilling.com',
+    'http://bdlmilling.com',
+    'https://208.109.191.92',
+    'http://208.109.191.92',
+]
+
