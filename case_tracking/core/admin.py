@@ -1,18 +1,36 @@
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
-from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.admin import Group, UserAdmin
 from django.shortcuts import render
 from django.urls import path
+from django_celery_beat.models import (
+    ClockedSchedule,
+    CrontabSchedule,
+    IntervalSchedule,
+    PeriodicTask,
+    SolarSchedule,
+)
 
 from .admin_views import CaseProcessing
 from .models import Case, CaseStageLog, CustomUser, NextStage, Stage
 
+admin.site.unregister(Group)
+admin.site.unregister(PeriodicTask)
+admin.site.unregister(IntervalSchedule)
+admin.site.unregister(CrontabSchedule)
+admin.site.unregister(SolarSchedule)
+admin.site.unregister(ClockedSchedule)
+
+admin.site.site_header = "BDL milling Admin"
+admin.site.site_title = "BDL milling Admin"
+admin.site.index_title = "Welcome to BDL milling Admin"
+
 
 class CustomAdminSite(AdminSite):
-    site_header = "Case Processing Admin"
-    site_title = "Case Processing Admin"
-    index_title = "Welcome to Case Processing Admin"
+    site_header = "BDL milling Admin"
+    site_title = "BDL milling Admin"
+    index_title = "Welcome to BDL milling Admin"
 
     def get_urls(self):
         urls = super().get_urls()
@@ -47,7 +65,7 @@ class CaseAdminForm(forms.ModelForm):
     def clean_current_stage(self):
         current_stage = self.cleaned_data.get("current_stage")
         if not current_stage:
-            raise forms.ValidationError("Необходимо указать текущий этап.")
+            raise forms.ValidationError("You must specify the current stage.")
         return current_stage
 
 
