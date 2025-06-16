@@ -32,7 +32,9 @@ class CaseViewSet(viewsets.ModelViewSet):
                     case = case_barcode
                     current_stage = case.current_stage
 
-                    first_stage = Stage.objects.get(name=config.FIRST_STAGE_NAME)
+                    first_stage = Stage.objects.get(
+                        stage_group=config.FIRST_STAGE_GROUP
+                    )
 
                     if stage == current_stage:
                         return Response(
@@ -45,7 +47,7 @@ class CaseViewSet(viewsets.ModelViewSet):
 
                     # Проверяем, является ли это возвратом
                     if current_stage is not None:  # Не новый кейс
-                        if stage != first_stage:
+                        if stage.stage_group != first_stage.stage_group:
                             # Возврат на любую стадию кроме первой - ошибка
                             return Response(
                                 {
@@ -54,7 +56,7 @@ class CaseViewSet(viewsets.ModelViewSet):
                                 },
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
-                        elif stage == first_stage:
+                        elif stage.stage_group == first_stage.stage_group:
                             # Возврат на первую стадию - требуем причину
                             reason_key = request.data.get("reason", None)
                             custom_reason = request.data.get("custom_reason", None)

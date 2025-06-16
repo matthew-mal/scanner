@@ -101,7 +101,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 LANGUAGES = [
-    ('en', 'English'),
+    ("en", "English"),
 ]
 LANGUAGE_CODE = "en-us"
 
@@ -140,11 +140,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATICFILES_DIRS = []
 
 STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
 
-#DB and celery
+# DB and celery
 
 DATABASES = {
     "default": dj_database_url.config(default=config("DATABASE_URL"), conn_max_age=600)
@@ -220,13 +220,13 @@ CONSTANCE_CONFIG = {
         datetime.timedelta(minutes=5),
         "How long does it take to automatically archive completed cases",
     ),
-    "FIRST_STAGE_NAME": (
+    "FIRST_STAGE_GROUP": (
         "New",
-        "The name of the first stage (must match the stage name in Stage)",
+        "The name of the first stage group (must match the stage group name in Stage)",
     ),
-    "LAST_STAGE_NAME": (
+    "LAST_STAGE_GROUP": (
         "Done",
-        "The name of the last stage (must match the stage name in Stage)",
+        "The name of the last stage group (must match the stage group name in Stage)",
     ),
 }
 
@@ -248,9 +248,8 @@ DBBACKUP_GZIP = True
 
 # CSRF
 CSRF_TRUSTED_ORIGINS = [
-    'https://bdlmilling.com',
-    'http://bdlmilling.com',
-    'https://208.109.191.92',
-    'http://208.109.191.92',
+    "https://bdlmilling.com",
+    "http://bdlmilling.com",
+    "https://208.109.191.92",
+    "http://208.109.191.92",
 ]
-

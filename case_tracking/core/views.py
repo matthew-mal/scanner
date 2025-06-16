@@ -198,24 +198,24 @@ def assign_employee_barcode(request):
                     .exists()
                 ):
                     messages.error(
-                        request, "Этот штрихкод уже привязан к другому сотруднику"
+                        request, "This barcode is already linked to another employee."
                     )
                 else:
                     employee.barcode = barcode
                     employee.save()
                     messages.success(
                         request,
-                        f"Штрихкод {barcode} привязан к сотруднику {employee.get_full_name()}",
+                        f"Barcode {barcode} assign to {employee.get_full_name()}",
                     )
                     return redirect(
                         "assign_employee_barcode"
                     )  # Обновляем страницу после успеха
             except CustomUser.DoesNotExist:
-                messages.error(request, "Сотрудник не найден")
+                messages.error(request, "The employee was not found")
 
     context = {
         "form": form,
-        "title": "Привязка штрихкода к сотруднику",
+        "title": "Linking a barcode to an employee",
     }
     return render(request, "users/assign_employee_barcode.html", context)
 
@@ -236,24 +236,24 @@ def assign_stage_barcode(request):
                 stage = Stage.objects.get(id=stage_id)
                 if Stage.objects.filter(barcode=barcode).exclude(id=stage_id).exists():
                     messages.error(
-                        request, "Этот штрихкод уже привязан к другой стадии"
+                        request, "This barcode is already linked to another stage."
                     )
                 else:
                     stage.barcode = barcode
                     stage.save()
                     messages.success(
                         request,
-                        f"Штрихкод {barcode} привязан к стадии {stage.display_name}",
+                        f"Barcode {barcode} already linked to the stage {stage.display_name}",
                     )
                     return redirect(
                         "assign_stage_barcode"
                     )  # Обновляем страницу после успеха
             except Stage.DoesNotExist:
-                messages.error(request, "Стадия не найдена")
+                messages.error(request, "Stage not found")
 
     context = {
         "form": form,
-        "title": "Привязка штрихкода к стадии",
+        "title": "Linking a barcode to a stage",
     }
     return render(request, "users/assign_stage_barcode.html", context)
 
